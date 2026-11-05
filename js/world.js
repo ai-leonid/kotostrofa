@@ -347,6 +347,18 @@ function buildApartment(scene, world) {
         a.door._anim(a.t);
       }
     }
+    // Анимация ряби на поверхности воды в ванне
+    if (tubWaterGeo && tubWaterGeo.attributes && tubWaterGeo.attributes.position) {
+      const posAttr = tubWaterGeo.attributes.position;
+      const t = performance.now() / 1000;
+      for (let i = 0; i < posAttr.count; i++) {
+        const vx = posAttr.getX(i);
+        const vy = posAttr.getY(i);
+        const wave = Math.sin(vx * 7.5 + t * 3.2) * Math.cos(vy * 8.0 + t * 2.4) * 0.014;
+        posAttr.setZ(i, wave);
+      }
+      posAttr.needsUpdate = true;
+    }
   }
 
   // ---------- фартук кухни и панели ванной (визуально) ----------
@@ -431,14 +443,22 @@ function buildApartment(scene, world) {
   box(-0.06, 0.6, 4.0, 0.17, 0.05, 0.95, bathWhite, { body: false });
   box(1.86, 0.6, 4.0, 0.17, 0.05, 0.95, bathWhite, { body: false });
   // вода
-  const tubWater = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.7), new THREE.MeshStandardMaterial({ color: "#6aa8d8", transparent: true, opacity: 0.5, roughness: 0.15 }));
+  const tubWaterGeo = new THREE.PlaneGeometry(1.7, 0.7, 24, 12);
+  const tubWaterMat = new THREE.MeshStandardMaterial({
+    color: "#4a9bd8",
+    roughness: 0.08,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.72
+  });
+  const tubWater = new THREE.Mesh(tubWaterGeo, tubWaterMat);
   tubWater.rotation.x = -Math.PI / 2;
   tubWater.position.set(0.9, 0.38, 4.0);
   scene.add(tubWater);
   // смеситель
   cyl(0.9, 0.66, 4.44, 0.035, 0.045, 0.14, chrome, { body: false });
   cyl(0.9, 0.9, 4.44, 0.022, 0.022, 0.36, chrome, { body: false });
-  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.24, 10), chrome);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.24, 16), chrome);
   spout.rotation.x = Math.PI / 2;
   spout.position.set(0.9, 1.06, 4.33);
   scene.add(spout);
@@ -446,19 +466,33 @@ function buildApartment(scene, world) {
   cyl(1.12, 0.62, 4.45, 0.032, 0.032, 0.07, chrome, { rx: Math.PI / 2, body: false });
   // душ: стойка и лейка
   cyl(1.55, 1.45, 4.44, 0.02, 0.02, 1.7, chrome, { body: false });
-  const showerNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8), chrome);
+  const showerNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.22, 14), chrome);
   showerNeck.rotation.x = Math.PI / 2;
   showerNeck.position.set(1.55, 2.26, 4.35);
   scene.add(showerNeck);
   cyl(1.55, 2.2, 4.26, 0.09, 0.075, 0.05, chrome, { body: false });
 
+  // унитаз
   box(5.9, 0.175, 3.9, 0.42, 0.35, 0.5, bathWhite);
   box(5.9, 0.55, 4.28, 0.42, 0.5, 0.24, bathWhite);
   cyl(5.9, 0.41, 3.88, 0.21, 0.21, 0.07, bathWhite, { body: false });
 
+  // тумба с раковиной
   box(6.35, 0.4, 1.2, 0.55, 0.8, 0.5, std("#7fa8c9", 0.6));
   cyl(6.35, 0.87, 1.2, 0.24, 0.19, 0.1, bathWhite, { body: false });
   cyl(6.55, 1.0, 1.2, 0.02, 0.02, 0.2, std("#c9ccd2", 0.3, 0.7), { body: false, cast: false });
+
+  // СТИРАЛЬНАЯ МАШИНА
+  const washerMat = std("#f5f6f8", 0.35, 0.1);
+  const washerDark = std("#262930", 0.3, 0.5);
+  box(4.8, 0.43, 4.05, 0.65, 0.86, 0.65, washerMat);
+  cyl(4.8, 0.42, 3.71, 0.22, 0.22, 0.03, chrome, { rx: Math.PI / 2, body: false });
+  cyl(4.8, 0.42, 3.70, 0.17, 0.17, 0.03, washerDark, { rx: Math.PI / 2, body: false });
+  box(4.62, 0.77, 3.71, 0.18, 0.08, 0.03, std("#e0e4e8", 0.4), { body: false });
+  cyl(4.98, 0.77, 3.71, 0.03, 0.03, 0.02, chrome, { rx: Math.PI / 2, body: false });
+
+  // стеклянная полочка под зеркалом
+  box(6.35, 1.25, 1.2, 0.18, 0.02, 0.5, std("#bfe3ff", 0.1, 0.2), { body: false });
 
   const bathMatPlane = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.45), new THREE.MeshStandardMaterial({ color: "#6f9ec4", roughness: 1 }));
   bathMatPlane.rotation.x = -Math.PI / 2;
@@ -552,6 +586,7 @@ function buildApartment(scene, world) {
     stoveTopY: 0.88,
     sinkTopY: 0.84,
     tubTopY: 0.58,
+    washerTopY: 0.86,
     rug: { x: -4.4, z: 0.9, r: 1.2, name: "ковёр", points: 100 },
     bathMat: { x: 0.9, z: 2.9, r: 0.45, name: "коврик", points: 80 },
     sofa: { x: -5.95, z: 0.9, r: 1.1, name: "диван", points: 120, questId: "sofa" },

@@ -1,18 +1,18 @@
 "use strict";
 
 function createCat(scene, world, M, spawn) {
-  const orange = new THREE.MeshStandardMaterial({ color: "#d98a3d", roughness: 0.9 });
-  const cream = new THREE.MeshStandardMaterial({ color: "#f5ead9", roughness: 0.95 });
-  const pink = new THREE.MeshStandardMaterial({ color: "#e8a0a8", roughness: 0.8 });
+  const orange = new THREE.MeshStandardMaterial({ color: "#d98a3d", roughness: 0.85 });
+  const cream = new THREE.MeshStandardMaterial({ color: "#f5ead9", roughness: 0.9 });
+  const pink = new THREE.MeshStandardMaterial({ color: "#e8a0a8", roughness: 0.75 });
 
   const group = new THREE.Group();
 
   const bodyG = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), orange);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), orange);
   body.scale.set(1, 0.85, 1.35);
   body.position.y = 0.26;
   bodyG.add(body);
-  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.165, 14, 10), cream);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.165, 20, 14), cream);
   belly.scale.set(0.85, 0.7, 1.15);
   belly.position.set(0, 0.2, 0.045);
   bodyG.add(belly);
@@ -20,29 +20,31 @@ function createCat(scene, world, M, spawn) {
 
   const headG = new THREE.Group();
   headG.position.set(0, 0.46, 0.2);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), orange);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 18), orange);
   headG.add(skull);
   const ears = [];
+  const eyes = [];
   [-1, 1].forEach(function (s) {
     const earG = new THREE.Group();
     earG.position.set(s * 0.085, 0.13, -0.01);
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.11, 4), orange);
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.11, 8), orange);
     ear.rotation.z = -s * 0.28;
     earG.add(ear);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 4), pink);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 8), pink);
     inner.position.set(-s * 0.007, -0.015, 0.025);
     inner.rotation.z = -s * 0.28;
     earG.add(inner);
     headG.add(earG);
     ears.push(earG);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), new THREE.MeshStandardMaterial({ color: "#1d1d22", roughness: 0.2 }));
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 16, 12), new THREE.MeshStandardMaterial({ color: "#1d1d22", roughness: 0.1, metalness: 0.2 }));
     eye.position.set(s * 0.065, 0.03, 0.125);
     headG.add(eye);
-    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), new THREE.MeshBasicMaterial({ color: "#ffffff" }));
+    eyes.push(eye);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffffff" }));
     glint.position.set(s * 0.058, 0.04, 0.144);
     headG.add(glint);
   });
-  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.068, 12, 8), cream);
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.068, 18, 14), cream);
   muzzle.position.set(0, -0.045, 0.115);
   headG.add(muzzle);
   const nose = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.018, 0.014), pink);
@@ -59,13 +61,25 @@ function createCat(scene, world, M, spawn) {
   headG.add(new THREE.LineSegments(whiskGeo, new THREE.LineBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.7 })));
   group.add(headG);
 
+  // Иконка шока / испуга над котом (!)
+  const panicG = new THREE.Group();
+  const panicBar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.014, 0.15, 12), new THREE.MeshBasicMaterial({ color: "#ff2222" }));
+  panicBar.position.y = 0.085;
+  panicG.add(panicBar);
+  const panicDot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 10), new THREE.MeshBasicMaterial({ color: "#ff2222" }));
+  panicDot.position.y = -0.02;
+  panicG.add(panicDot);
+  panicG.position.set(0, 0.78, 0.2);
+  panicG.visible = false;
+  group.add(panicG);
+
   function makeLeg(x, z) {
     const hip = new THREE.Group();
     hip.position.set(x, 0.26, z);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.22, 8), orange);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.22, 14), orange);
     leg.position.y = -0.11;
     hip.add(leg);
-    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), cream);
+    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 12), cream);
     paw.position.y = -0.22;
     hip.add(paw);
     group.add(hip);
@@ -83,7 +97,7 @@ function createCat(scene, world, M, spawn) {
     const seg = new THREE.Group();
     seg.position.set(0, i === 0 ? ty : 0.12, i === 0 ? tz : 0);
     if (i === 0) seg.rotation.x = -0.9;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(tr, tr * 1.15, 0.13, 8), i === 3 ? cream : orange);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(tr, tr * 1.15, 0.13, 14), i === 3 ? cream : orange);
     m.position.y = 0.065;
     seg.add(m);
     tailParent.add(seg);
@@ -110,6 +124,13 @@ function createCat(scene, world, M, spawn) {
     walkPhase: 0, speedSmooth: 0,
     swipeT: 0, meowT: 0, headYaw: 0, headYawTarget: 0, headTimer: 2,
     airTime: 0,
+    scaredT: 0,
+
+    scare: function (dur) {
+      this.scaredT = dur || 1.8;
+      panicG.visible = true;
+      if (AudioSys.hiss) AudioSys.hiss();
+    },
 
     forward: function () {
       return { x: Math.sin(this.yaw), y: 0, z: Math.cos(this.yaw) };
@@ -269,6 +290,39 @@ function createCat(scene, world, M, spawn) {
       const runStretch = input.run ? 0.35 : 0;
       tailSegs[0].rotation.x = -0.9 + Math.sin(t * 1.7) * 0.12 + amp * 0.28 + runStretch;
       muzzle.scale.setScalar(this.meowT > 0 ? 1.25 : 1);
+
+      // Анимация дикого испуга (паника от робота-пылесоса, сбитие комбо)
+      if (this.scaredT > 0) {
+        this.scaredT -= dt;
+        const sNorm = Math.min(1, this.scaredT * 1.5);
+        // Выгнутая дугой спина
+        body.scale.set(0.85, 0.85 + 0.45 * sNorm, 1.15);
+        bodyG.position.y = 0.07 * sNorm;
+        bodyG.position.x = (Math.random() - 0.5) * 0.025 * sNorm;
+        // Хвост торчком и мелко дрожит от страха
+        tailSegs[0].rotation.x = 0.65 * sNorm;
+        for (let i = 0; i < tailSegs.length; i++) {
+          tailSegs[i].rotation.z = Math.sin(t * 35 + i) * 0.25 * sNorm;
+        }
+        // Уши прижаты назад и вбок
+        for (let i = 0; i < ears.length; i++) {
+          ears[i].rotation.x = -0.75 * sNorm;
+        }
+        // Расширенные от ужаса зрачки
+        for (let i = 0; i < eyes.length; i++) {
+          eyes[i].scale.setScalar(1 + 0.7 * sNorm);
+        }
+        // Пульсирующий знак шока (!) над головой
+        panicG.visible = true;
+        panicG.position.y = 0.78 + Math.sin(this.scaredT * 12) * 0.07;
+        panicG.rotation.y = -this.yaw + (input.camYaw || 0) + Math.PI;
+      } else {
+        body.scale.set(1, 0.85, 1.35);
+        panicG.visible = false;
+        for (let i = 0; i < eyes.length; i++) {
+          eyes[i].scale.setScalar(1);
+        }
+      }
     }
   };
   cat.sync();

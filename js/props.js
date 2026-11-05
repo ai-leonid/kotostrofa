@@ -62,19 +62,30 @@ function buildProps(scene, world, apt) {
   // ---------- мелкие сборщики мешей ----------
   function meshCup(color) {
     const g = new THREE.Group();
-    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.028, 0.09, 12), std(color, 0.4)));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.03, 0.095, 24), std(color, 0.15, 0.05)));
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.007, 8, 16, Math.PI), std(color, 0.15, 0.05));
+    handle.rotation.z = Math.PI / 2;
+    handle.position.set(0.042, 0, 0);
+    g.add(handle);
     return g;
   }
   function meshPlate() {
-    return new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.028, 16), std("#f2f2ee", 0.35));
+    const g = new THREE.Group();
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.09, 0.024, 32), std("#f8f8f5", 0.12, 0.05));
+    g.add(p);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.008, 8, 32), std("#f8f8f5", 0.12, 0.05));
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.012;
+    g.add(rim);
+    return g;
   }
   function meshBottle(color) {
     const g = new THREE.Group();
-    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.048, 0.22, 12), std(color, 0.25)));
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.03, 0.08, 10), std(color, 0.25));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.048, 0.22, 24), std(color, 0.12, 0.1)));
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.03, 0.08, 20), std(color, 0.12, 0.1));
     neck.position.y = 0.15;
     g.add(neck);
-    const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.025, 8), std("#b08a55", 0.8));
+    const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.025, 12), std("#b08a55", 0.8));
     cork.position.y = 0.2;
     g.add(cork);
     return g;
@@ -90,7 +101,7 @@ function buildProps(scene, world, apt) {
   }
   function meshVase(h, r, color) {
     const g = new THREE.Group();
-    const v = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.7, r, h, 14), new THREE.MeshStandardMaterial({ color: color, roughness: 0.15, transparent: true, opacity: 0.6 }));
+    const v = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.7, r, h, 24), new THREE.MeshStandardMaterial({ color: color, roughness: 0.12, metalness: 0.08, transparent: true, opacity: 0.65 }));
     g.add(v);
     return g;
   }
@@ -136,12 +147,26 @@ function buildProps(scene, world, apt) {
 
   function spawnWaterDecal(x, z, r) {
     const rad = r || 0.3;
-    const m = new THREE.Mesh(new THREE.CircleGeometry(rad, 20), new THREE.MeshStandardMaterial({ color: "#5a8ac9", transparent: true, opacity: 0.5, roughness: 0.1 }));
+    const m = new THREE.Mesh(new THREE.CircleGeometry(rad, 28), new THREE.MeshStandardMaterial({
+      color: "#4a92d8", transparent: true, opacity: 0.68, roughness: 0.04, metalness: 0.12
+    }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, 0.015 + Math.random() * 0.004, z);
     m.receiveShadow = true;
     scene.add(m);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(rad * 0.88, rad, 28), new THREE.MeshBasicMaterial({
+      color: "#99d0ff", transparent: true, opacity: 0.45, depthWrite: false
+    }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, 0.016, z);
+    scene.add(ring);
     transients.push({ mesh: m, body: null, t: 0, life: 60 });
+    transients.push({
+      mesh: ring, body: null, t: 0, life: 60,
+      onUpdate: function (tr, dt) {
+        tr.mesh.scale.setScalar(1 + Math.sin(tr.t * 3) * 0.02);
+      }
+    });
     puddles.push({ x: x, z: z, r: rad });
   }
 
@@ -257,12 +282,32 @@ function buildProps(scene, world, apt) {
     });
   }
 
+  function spawnSmoke(x, y, z, count) {
+    const n = count || 3;
+    for (let i = 0; i < n; i++) {
+      const geo = new THREE.SphereGeometry(0.04 + Math.random() * 0.035, 10, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: "#1f2228", transparent: true, opacity: 0.65, depthWrite: false });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x + (Math.random() - 0.5) * 0.12, y + Math.random() * 0.04, z + (Math.random() - 0.5) * 0.12);
+      scene.add(m);
+      transients.push({
+        mesh: m, body: null, t: 0, life: 1.2 + Math.random() * 0.5,
+        onUpdate: function (tr, dt) {
+          tr.mesh.position.y += 0.55 * dt;
+          tr.mesh.scale.multiplyScalar(1 + dt * 2.5);
+          tr.mesh.material.opacity = Math.max(0, (1 - tr.t / tr.life) * 0.65);
+        }
+      });
+    }
+  }
+
   const fx = {
     dust: spawnDust,
     sparks: spawnSparks,
     splashes: spawnSplashes,
     feathers: spawnFeathers,
-    pawPrint: spawnPawPrint
+    pawPrint: spawnPawPrint,
+    smoke: spawnSmoke
   };
   KOTO.fx = fx;
 
@@ -593,7 +638,7 @@ function buildProps(scene, world, apt) {
       milk.body.angularVelocity.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
     }
     const sausG = new THREE.Group();
-    const sausM = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.32, 12), std("#8a3838", 0.7));
+    const sausM = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.32, 24), std("#8a3838", 0.7));
     sausM.rotation.z = Math.PI / 2;
     sausG.add(sausM);
     const saus = register("палку колбасы", 380, sausG, cylShapeY(0.042, 0.32),
@@ -601,20 +646,20 @@ function buildProps(scene, world, apt) {
     saus.body.velocity.set(2.2, 0.8, -0.4);
 
     const cheeseG = new THREE.Group();
-    cheeseG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.09, 14), std("#f2c94c", 0.6)));
+    cheeseG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.09, 24), std("#f2c94c", 0.6)));
     const cheese = register("головку сыра", 420, cheeseG, cylShapeY(0.12, 0.09),
       -0.45, 0.7, -3.6, { mass: 0.6, breakable: false });
     cheese.body.velocity.set(2.0, 0.7, 0.4);
 
     const jarG = new THREE.Group();
-    jarG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 12), new THREE.MeshStandardMaterial({ color: "#2d5a27", transparent: true, opacity: 0.7, roughness: 0.2 })));
+    jarG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 20), new THREE.MeshStandardMaterial({ color: "#2d5a27", transparent: true, opacity: 0.7, roughness: 0.15 })));
     const jar = register("банку солений", 280, jarG, cylShapeY(0.07, 0.18),
       -0.45, 1.1, -3.5, { mass: 0.7, breakable: true, breakVel: 1.8, shardColor: "#3a6a30" });
     jar.body.velocity.set(2.1, 0.9, -0.2);
 
     const borschG = new THREE.Group();
-    borschG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.19, 16), std("#882222", 0.4, 0.5)));
-    const bLid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.03, 16), std("#c9ccd2", 0.2, 0.8));
+    borschG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.19, 24), std("#882222", 0.4, 0.5)));
+    const bLid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.03, 24), std("#c9ccd2", 0.2, 0.8));
     bLid.position.y = 0.11;
     borschG.add(bLid);
     const pot = register("кастрюлю с борщом", 950, borschG, cylShapeY(0.15, 0.19),
@@ -847,6 +892,115 @@ function buildProps(scene, world, apt) {
   register("фен", 900, dryerG, cylShapeY(0.05, 0.2), 6.18, L.sinkTopY + 0.13, 1.52, { mass: 0.5, breakable: true, breakVel: 2.0, shardColor: "#c94a4a" });
   register("одеколон", 400, meshBottle("#4a8ac9"), cylShapeY(0.05, 0.27), 6.15, L.sinkTopY + 0.135, 1.28, { mass: 0.4, breakable: true, breakVel: 2.5, shardColor: "#4a8ac9" });
 
+  // Новые предметы обихода ванной:
+  // 1. Порошок на стиральной машине
+  const soapBoxG = new THREE.Group();
+  soapBoxG.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.09), std("#3b82f6", 0.6)));
+  const soapLid = new THREE.Mesh(new THREE.BoxGeometry(0.164, 0.03, 0.094), std("#f97316", 0.5));
+  soapLid.position.y = 0.11;
+  soapBoxG.add(soapLid);
+  register("порошок", 380, soapBoxG, boxShape(0.08, 0.11, 0.045), 4.65, L.washerTopY + 0.11, 4.15, {
+    mass: 0.6, breakable: true, breakVel: 1.8, shardColor: "#3b82f6"
+  });
+
+  // 2. Кондиционер для белья
+  const condG = new THREE.Group();
+  condG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.045, 0.22, 16), std("#a855f7", 0.4)));
+  const condCap = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.025, 0.04, 12), std("#f1f5f9", 0.3));
+  condCap.position.y = 0.12;
+  condG.add(condCap);
+  register("кондиционер", 320, condG, cylShapeY(0.045, 0.24), 5.02, L.washerTopY + 0.12, 4.15, { mass: 0.5 });
+
+  // 3. Тазик пластиковый
+  const basinG = new THREE.Group();
+  basinG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.13, 0.12, 20, 1, true), std("#06b6d4", 0.4)));
+  const basinBot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.015, 20), std("#06b6d4", 0.4));
+  basinBot.position.y = -0.06;
+  basinG.add(basinBot);
+  register("тазик", 280, basinG, cylShapeY(0.18, 0.12), 4.75, L.washerTopY + 0.06, 3.82, { mass: 0.4 });
+
+  // 4. Стопка полотенец на стиралке
+  const towelStackG = new THREE.Group();
+  ["#e2e8f0", "#93c5fd", "#fbcfe8"].forEach(function (c, i) {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.18), std(c, 0.95));
+    t.position.y = i * 0.045;
+    towelStackG.add(t);
+  });
+  register("стопку полотенец", 420, towelStackG, boxShape(0.1, 0.07, 0.09), 5.0, L.washerTopY + 0.07, 3.82, { mass: 0.35 });
+
+  // 5. Ёршик для унитаза
+  const brushG = new THREE.Group();
+  const brushCup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.14, 14), std("#e2e8f0", 0.4));
+  brushG.add(brushCup);
+  const brushHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.26, 10), std("#94a3b8", 0.2, 0.8));
+  brushHandle.position.y = 0.13;
+  brushG.add(brushHandle);
+  register("ёршик", 220, brushG, cylShapeY(0.045, 0.27), 5.45, 0.135, 4.25, { mass: 0.3, breakable: true, breakVel: 1.8, shardColor: "#e2e8f0" });
+
+  // 6. Освежитель воздуха
+  const sprayG = new THREE.Group();
+  sprayG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.19, 14), std("#10b981", 0.35)));
+  const sprayCap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.04, 12), std("#f8fafc", 0.3));
+  sprayCap.position.y = 0.105;
+  sprayG.add(sprayCap);
+  register("освежитель", 240, sprayG, cylShapeY(0.032, 0.21), 5.48, 0.105, 3.92, { mass: 0.25 });
+
+  // 7. Пена для бритья (на раковине)
+  const shaveG = new THREE.Group();
+  shaveG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 14), std("#2563eb", 0.3, 0.5)));
+  const shaveCap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.035, 12), std("#f8fafc", 0.4));
+  shaveCap.position.y = 0.09;
+  shaveG.add(shaveCap);
+  register("пену для бритья", 280, shaveG, cylShapeY(0.03, 0.18), 6.55, L.sinkTopY + 0.09 + 0.03, 1.12, { mass: 0.3 });
+
+  // 8. Тюбик зубной пасты
+  const pasteG = new THREE.Group();
+  pasteG.add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.13), std("#ef4444", 0.5)));
+  const pasteCap = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 8), std("#ffffff", 0.4));
+  pasteCap.rotation.x = Math.PI / 2;
+  pasteCap.position.z = 0.07;
+  pasteG.add(pasteCap);
+  register("зубную пасту", 140, pasteG, boxShape(0.02, 0.01, 0.065), 6.18, L.sinkTopY + 0.01 + 0.03, 1.45, { mass: 0.1 });
+
+  // 9. Ополаскиватель для рта
+  const mouthwashG = new THREE.Group();
+  mouthwashG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.04, 0.18, 16), new THREE.MeshStandardMaterial({ color: "#14b8a6", roughness: 0.1, transparent: true, opacity: 0.8 })));
+  const mwCap = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 12), std("#ffffff", 0.3));
+  mwCap.position.y = 0.105;
+  mouthwashG.add(mwCap);
+  register("ополаскиватель", 260, mouthwashG, cylShapeY(0.04, 0.2), 6.42, 1.25 + 0.1, 1.05, { mass: 0.35, breakable: true, breakVel: 2.0, shardColor: "#14b8a6" });
+
+  // 10. Морская соль для ванн (на полочке)
+  const bathSaltG = new THREE.Group();
+  bathSaltG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.11, 16), new THREE.MeshStandardMaterial({ color: "#e879f9", roughness: 0.15, transparent: true, opacity: 0.85 })));
+  const saltCork = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 14), std("#b45309", 0.8));
+  saltCork.position.y = 0.06;
+  bathSaltG.add(saltCork);
+  register("морскую соль", 310, bathSaltG, cylShapeY(0.045, 0.12), 6.42, 1.25 + 0.06, 1.35, { mass: 0.35, breakable: true, breakVel: 2.0, shardColor: "#e879f9" });
+
+  // 11-12. Резиновые утята (в ванне)
+  function meshDuckling() {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 10), std("#facc15", 0.5));
+    b.scale.set(1, 0.8, 1.2);
+    g.add(b);
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10), std("#facc15", 0.5));
+    h.position.set(0, 0.032, 0.032);
+    g.add(h);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.022, 8), std("#ea580c", 0.6));
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, 0.028, 0.055);
+    g.add(beak);
+    return g;
+  }
+  register("утёнка", 150, meshDuckling(), cylShapeY(0.04, 0.08), 1.2, L.tubTopY + 0.04, 4.15, { mass: 0.1 });
+  register("утёнка", 150, meshDuckling(), cylShapeY(0.04, 0.08), 1.45, L.tubTopY + 0.04, 3.9, { mass: 0.1 });
+
+  // 13. Мочалка/губка на бортике
+  const spongeG = new THREE.Group();
+  spongeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.08), std("#84cc16", 0.95)));
+  register("мочалку", 120, spongeG, boxShape(0.06, 0.025, 0.04), 0.9, L.tubTopY + 0.025, 3.56, { mass: 0.08 });
+
   // ---------- СПАЛЬНЯ ----------
   // подушки на кровати
   [[9.85, -4.08, "#e8ddc9"], [10.55, -4.08, "#d8c9b0"]].forEach(function (a) {
@@ -918,21 +1072,95 @@ function buildProps(scene, world, apt) {
 
   // ---------- РОБОТ-ПЫЛЕСОС «ЖОРКА-3000» ----------
   const vacG = new THREE.Group();
-  const vacBase = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 18), std("#252830", 0.4, 0.4));
+  const vacBase = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 32), std("#252830", 0.35, 0.4));
   vacBase.castShadow = true;
   vacG.add(vacBase);
 
-  const vacBumper = new THREE.Mesh(new THREE.CylinderGeometry(0.286, 0.286, 0.05, 18), std("#15171c", 0.7));
+  const vacBumper = new THREE.Mesh(new THREE.CylinderGeometry(0.286, 0.286, 0.05, 32), std("#15171c", 0.7));
   vacBumper.position.y = -0.012;
   vacG.add(vacBumper);
 
-  const vacTop = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 14), std("#333742", 0.3));
-  vacTop.position.y = 0.045;
-  vacG.add(vacTop);
+  // Лидар-башенка
+  const vacLidar = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.07, 0.035, 20), std("#1c1e24", 0.4, 0.6));
+  vacLidar.position.set(0, 0.055, -0.06);
+  vacG.add(vacLidar);
 
-  const vacLed = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: "#00ff66" }));
-  vacLed.position.set(0, 0.058, 0.1);
-  vacG.add(vacLed);
+  // Крышка отсека (откидывается при поломке)
+  const vacLid = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.012, 24), std("#2d313b", 0.35));
+  vacLid.position.set(0, 0.046, 0.03);
+  vacG.add(vacLid);
+
+  // Внутренние провода под крышкой
+  const vacWires = new THREE.Group();
+  [[-0.05, "#ff3333"], [0, "#3388ff"], [0.05, "#ffcc00"]].forEach(function (w) {
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.015, 0.09), new THREE.MeshBasicMaterial({ color: w[1] }));
+    wire.position.set(w[0], 0.042, 0.03);
+    vacWires.add(wire);
+  });
+  vacWires.visible = false;
+  vacG.add(vacWires);
+
+  // Крупный проблесковый маячок / сирена на корпусе
+  const vacSirenG = new THREE.Group();
+  vacSirenG.position.set(0, 0.058, 0.12);
+  const vacSirenBase = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.02, 16), std("#15171c", 0.8));
+  vacSirenG.add(vacSirenBase);
+  const vacSirenDome = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 12), new THREE.MeshBasicMaterial({ color: "#00ff66" }));
+  vacSirenDome.position.y = 0.025;
+  vacSirenG.add(vacSirenDome);
+  const vacLight = new THREE.PointLight("#00ff66", 0.9, 3.0);
+  vacLight.position.y = 0.04;
+  vacSirenG.add(vacLight);
+  vacG.add(vacSirenG);
+
+  // ---------- 3D Floating HP Bar (полоска здоровья) ----------
+  const hpG = new THREE.Group();
+  hpG.position.set(0, 0.36, 0);
+
+  const hpBg = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.048, 0.01), new THREE.MeshBasicMaterial({ color: "#0a0c10", transparent: true, opacity: 0.85, depthTest: false }));
+  hpG.add(hpBg);
+
+  const hpFill = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.034, 0.014), new THREE.MeshBasicMaterial({ color: "#00ff66", depthTest: false }));
+  hpG.add(hpFill);
+
+  // Текстовая плашка со здоровьем
+  const hpCanvas = document.createElement("canvas");
+  hpCanvas.width = 256; hpCanvas.height = 64;
+  const hpCtx = hpCanvas.getContext("2d");
+  const hpTex = new THREE.CanvasTexture(hpCanvas);
+  const hpLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: hpTex, transparent: true, depthTest: false }));
+  hpLabel.position.y = 0.07;
+  hpLabel.scale.set(0.55, 0.14, 1);
+  hpG.add(hpLabel);
+
+  function renderHpText(cur, max) {
+    hpCtx.clearRect(0, 0, 256, 64);
+    hpCtx.font = "bold 26px 'Segoe UI', system-ui, sans-serif";
+    hpCtx.textAlign = "center"; hpCtx.textBaseline = "middle";
+    hpCtx.fillStyle = "#ffffff";
+    hpCtx.shadowColor = "rgba(0,0,0,0.9)"; hpCtx.shadowBlur = 6;
+    hpCtx.fillText("ЖОРКА-3000: " + Math.max(0, Math.round(cur)) + "/" + max + " HP", 128, 32);
+    hpTex.needsUpdate = true;
+  }
+  renderHpText(100, 100);
+
+  // Статус-бейдж сломанного робота
+  const brokenCanvas = document.createElement("canvas");
+  brokenCanvas.width = 256; brokenCanvas.height = 64;
+  const bCtx = brokenCanvas.getContext("2d");
+  bCtx.font = "900 32px 'Segoe UI', system-ui, sans-serif";
+  bCtx.textAlign = "center"; bCtx.textBaseline = "middle";
+  bCtx.fillStyle = "#ff2200";
+  bCtx.shadowColor = "rgba(255, 30, 0, 0.85)"; bCtx.shadowBlur = 10;
+  bCtx.fillText("⚠️ СЛОМАН", 128, 32);
+  const brokenTex = new THREE.CanvasTexture(brokenCanvas);
+  const brokenBadge = new THREE.Sprite(new THREE.SpriteMaterial({ map: brokenTex, transparent: true, depthTest: false }));
+  brokenBadge.position.y = 0.36;
+  brokenBadge.scale.set(0.65, 0.16, 1);
+  brokenBadge.visible = false;
+  vacG.add(brokenBadge);
+
+  vacG.add(hpG);
 
   const vacSpawn = { x: -3.0, y: 0.042, z: 1.0 };
   vacG.position.set(vacSpawn.x, vacSpawn.y, vacSpawn.z);
@@ -946,23 +1174,71 @@ function buildProps(scene, world, apt) {
   const vacuum = {
     mesh: vacG,
     body: vacBody,
-    led: vacLed,
+    led: vacSirenDome,
+    light: vacLight,
+    lid: vacLid,
+    hpG: hpG,
+    brokenBadge: brokenBadge,
+    maxHp: 100,
+    hp: 100,
     broken: false,
     scareCd: 0,
     yaw: 0,
     targetYaw: 0,
     turnTimer: 2.5,
     spinAngle: 0,
+    smokeTimer: 0,
+    sparkTimer: 0,
     pos: vacBody.position,
     room: "living",
+
+    updateHp: function () {
+      const pct = Math.max(0.001, Math.min(1, this.hp / this.maxHp));
+      hpFill.scale.x = pct;
+      hpFill.position.x = -0.205 * (1 - pct);
+      if (pct > 0.55) {
+        hpFill.material.color.set("#00ff66");
+      } else if (pct > 0.25) {
+        hpFill.material.color.set("#ffaa00");
+      } else {
+        hpFill.material.color.set("#ff2200");
+      }
+      renderHpText(this.hp, this.maxHp);
+    },
+
+    damage: function (amt, otherBody, v) {
+      if (this.broken) return;
+      this.hp = Math.max(0, this.hp - amt);
+      this.updateHp();
+      if (AudioSys.impact) AudioSys.impact();
+      if (KOTO.fx) KOTO.fx.sparks(this.pos.x, this.pos.y + 0.1, this.pos.z, 10);
+      if (KOTO.game) {
+        KOTO.game.floater(this.pos, "-" + amt + " HP!", "break");
+        KOTO.game.addFeed("Жорка-3000 получил урон: -" + amt + " HP! (" + Math.round(this.hp) + "/" + this.maxHp + ")");
+        KOTO.game.state.shake = Math.min(1, KOTO.game.state.shake + 0.3);
+      }
+      if (this.hp <= 0) {
+        this.break();
+      }
+    },
+
     break: function () {
       if (this.broken) return;
       this.broken = true;
+      this.hp = 0;
+      this.hpG.visible = false;
+      this.brokenBadge.visible = true;
       this.led.material.color.set("#ff1100");
+      this.light.color.set("#ff1100");
+      this.light.intensity = 2.2;
+      this.lid.rotation.x = 0.72;
+      this.lid.position.y += 0.035;
+      vacWires.visible = true;
       if (AudioSys.vacuumBroke) AudioSys.vacuumBroke();
       if (KOTO.fx) {
-        KOTO.fx.sparks(this.pos.x, this.pos.y + 0.1, this.pos.z, 16);
-        KOTO.fx.dust(this.pos.x, 0.05, this.pos.z, 10);
+        KOTO.fx.sparks(this.pos.x, this.pos.y + 0.1, this.pos.z, 22);
+        KOTO.fx.dust(this.pos.x, 0.05, this.pos.z, 12);
+        if (KOTO.fx.smoke) KOTO.fx.smoke(this.pos.x, this.pos.y + 0.1, this.pos.z, 6);
       }
       if (KOTO.game) {
         const pts = 12000;
@@ -971,7 +1247,7 @@ function buildProps(scene, world, apt) {
         const r = KOTO.levels.roomOf(this.pos.x, this.pos.z) || "living";
         KOTO.game.addScore(total, r);
         KOTO.game.record("Сломал: Робот-пылесос", total);
-        KOTO.game.floater(this.pos, "+12 000 ₽ ЖОРКА-3000 СЛОМАН!", "strike");
+        KOTO.game.floater(this.pos, "+12 000 ₽ ЖОРКА-3000 УНИЧТОЖЕН!", "strike");
         KOTO.game.addFeed("ЖОРКА-3000 ПОВЕРЖЕН! +" + total.toLocaleString("ru-RU") + " ₽");
         KOTO.game.state.shake = Math.min(1, KOTO.game.state.shake + 0.6);
       }
@@ -982,10 +1258,54 @@ function buildProps(scene, world, apt) {
     if (!e.contact || vacuum.broken) return;
     const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
     const other = e.body;
-    if (other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop && v > 1.3) {
-      vacuum.break();
+    if (other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop && v > 1.1) {
+      const mass = other.mass || 0.5;
+      const dmg = Math.min(100, Math.max(25, Math.round(v * 22 * Math.min(2.5, mass))));
+      vacuum.damage(dmg, other, v);
     }
   });
+
+  // Навигация робота с учётом стен и дверей (не проходить сквозь стены!)
+  function canVacuumMove(newX, newZ, curX, curZ) {
+    const R = 0.32;
+    // 1. Внешний периметр квартиры
+    if (newX - R < -6.85 || newX + R > 10.85) return false;
+    if (newZ - R < -4.25 || newZ + R > 4.25) return false;
+
+    // 2. Стена x = -1.5 (разделяет Гостиную и Кухню/Ванную)
+    const crossingW1 = (curX < -1.5 && newX + R >= -1.5) || (curX > -1.5 && newX - R <= -1.5) || Math.abs(newX - (-1.5)) < R;
+    if (crossingW1) {
+      const inDoorA = (newZ >= -2.25 && newZ <= -1.15);
+      const doorAOpen = apt.doors.A && apt.doors.A.isOpen;
+      const inDoorB = (newZ >= 1.65 && newZ <= 2.75);
+      const doorBOpen = apt.doors.B && apt.doors.B.isOpen;
+      if (!(inDoorA && doorAOpen) && !(inDoorB && doorBOpen)) return false;
+    }
+
+    // 3. Стена z = 0.6 (разделяет Кухню и Ванную от x = -1.5 до x = 7.125 — глухая стена)
+    if (newX >= -1.5 && newX <= 7.125) {
+      const crossingW2 = (curZ < 0.6 && newZ + R >= 0.6) || (curZ > 0.6 && newZ - R <= 0.6) || Math.abs(newZ - 0.6) < R;
+      if (crossingW2) return false;
+    }
+
+    // 4. Стена x = 7.125 (разделяет Кухню/Ванную и Спальню)
+    const crossingW3 = (curX < 7.125 && newX + R >= 7.125) || (curX > 7.125 && newX - R <= 7.125) || Math.abs(newX - 7.125) < R;
+    if (crossingW3) {
+      const inDoorV = (newZ >= -1.65 && newZ <= -0.75);
+      const doorVOpen = apt.doors.V && apt.doors.V.isOpen;
+      if (!(inDoorV && doorVOpen)) return false;
+    }
+
+    // 5. Крупные препятствия мебели
+    // Ванна в ванной: x [-0.2, 2.1], z [3.4, 4.5]
+    if (newX >= -0.2 && newX <= 2.1 && newZ >= 3.4 && newZ <= 4.5) return false;
+    // Кровать в спальне: x [9.2, 11.0], z [-4.4, -2.1]
+    if (newX >= 9.2 && newX <= 11.0 && newZ >= -4.4 && newZ <= -2.1) return false;
+    // Кухонный гарнитур: x [-1.5, 4.5], z [-4.5, -3.5]
+    if (newX >= -1.5 && newX <= 4.5 && newZ >= -4.5 && newZ <= -3.5) return false;
+
+    return true;
+  }
 
   function update(dt) {
     for (let i = transients.length - 1; i >= 0; i--) {
@@ -1024,48 +1344,89 @@ function buildProps(scene, world, apt) {
         vacuum.turnTimer = 3.5 + Math.random() * 4.0;
         vacuum.targetYaw = vacuum.yaw + (Math.random() - 0.5) * Math.PI * 1.2;
       }
-      let boundHit = false;
-      if (vacuum.pos.x < -6.5) { vacuum.targetYaw = Math.PI / 2; boundHit = true; }
-      else if (vacuum.pos.x > 6.5) { vacuum.targetYaw = -Math.PI / 2; boundHit = true; }
-      if (vacuum.pos.z < -4.0) { vacuum.targetYaw = 0; boundHit = true; }
-      else if (vacuum.pos.z > 4.0) { vacuum.targetYaw = Math.PI; boundHit = true; }
 
       let yd = vacuum.targetYaw - vacuum.yaw;
       while (yd > Math.PI) yd -= Math.PI * 2;
       while (yd < -Math.PI) yd += Math.PI * 2;
-      vacuum.yaw += yd * Math.min(1, (boundHit ? 8 : 3) * dt);
+      vacuum.yaw += yd * Math.min(1, 4 * dt);
 
       const sp = 1.15;
-      vacuum.pos.x += Math.sin(vacuum.yaw) * sp * dt;
-      vacuum.pos.z += Math.cos(vacuum.yaw) * sp * dt;
+      const nextX = vacuum.pos.x + Math.sin(vacuum.yaw) * sp * dt;
+      const nextZ = vacuum.pos.z + Math.cos(vacuum.yaw) * sp * dt;
+
+      if (canVacuumMove(nextX, nextZ, vacuum.pos.x, vacuum.pos.z)) {
+        vacuum.pos.x = nextX;
+        vacuum.pos.z = nextZ;
+      } else {
+        // Упёрся в стену или закрытую дверь — отскок бампером и разворот!
+        vacuum.targetYaw = vacuum.yaw + Math.PI * (0.6 + Math.random() * 0.8);
+        vacuum.turnTimer = 2.0 + Math.random() * 2.5;
+      }
+
       vacuum.mesh.position.copy(vacuum.pos);
       vacuum.mesh.rotation.y = vacuum.yaw;
 
-      // Опасность для кота: наезд сбивает комбо в 0!
+      // Опасность для кота: наезд сбивает комбо в 0 и вызывает панику!
       if (KOTO.cat && vacuum.scareCd <= 0) {
         const cp = KOTO.cat.body.position;
         const dx = cp.x - vacuum.pos.x, dz = cp.z - vacuum.pos.z;
         if (Math.hypot(dx, dz) < 0.52 && Math.abs(cp.y - vacuum.pos.y) < 0.45) {
           vacuum.scareCd = 3.0;
-          KOTO.cat.body.velocity.y = 4.0;
-          KOTO.cat.body.velocity.x += (dx >= 0 ? 2.8 : -2.8);
-          KOTO.cat.body.velocity.z += (dz >= 0 ? 2.8 : -2.8);
+          KOTO.cat.body.velocity.y = 4.2;
+          KOTO.cat.body.velocity.x += (dx >= 0 ? 3.0 : -3.0);
+          KOTO.cat.body.velocity.z += (dz >= 0 ? 3.0 : -3.0);
+          if (KOTO.cat.scare) KOTO.cat.scare(2.0);
           if (AudioSys.hiss) AudioSys.hiss();
           if (KOTO.game) {
             KOTO.game.state.combo = 0;
             KOTO.game.state.comboT = 0;
-            KOTO.game.floater(cp, "ПЫЛЕСОС! КОМБО СБРОШЕНО!", "break");
+            KOTO.game.floater(cp, "⚡ ПЫЛЕСОС! ИСПУГ! КОМБО СБРОШЕНО!", "break");
             KOTO.game.addFeed("Жорка-3000 наехал на кота! Серия комбо сброшена!");
-            KOTO.game.state.shake = 0.55;
+            KOTO.game.state.shake = 0.6;
+            // Экранная вспышка испуга
+            const sc = document.createElement("div");
+            sc.className = "screen-scared";
+            document.body.appendChild(sc);
+            setTimeout(function () { sc.remove(); }, 800);
+            const comboEl = document.getElementById("hud-combo");
+            if (comboEl) {
+              comboEl.classList.remove("combo-shattered");
+              void comboEl.offsetWidth;
+              comboEl.classList.add("combo-shattered");
+            }
           }
         }
       }
       if (vacuum.scareCd > 0) vacuum.scareCd -= dt;
     } else {
-      vacuum.spinAngle += dt * 7.0;
-      vacuum.mesh.rotation.y = vacuum.spinAngle;
-      if (Math.random() < dt * 3 && KOTO.fx) {
-        KOTO.fx.sparks(vacuum.pos.x, vacuum.pos.y + 0.08, vacuum.pos.z, 2);
+      // Сломанный робот: хромает на разбитом колесе, дымит, мигает сиреной и искрит
+      vacuum.spinAngle += dt * 7.5;
+      vacG.rotation.y = vacuum.spinAngle;
+      vacG.rotation.z = Math.sin(vacuum.spinAngle * 2) * 0.16;
+      vacG.rotation.x = Math.cos(vacuum.spinAngle * 2) * 0.12;
+
+      // Мигание аварийной сирены и красный свет
+      const flash = Math.sin(performance.now() / 90) > 0;
+      vacSirenDome.material.color.set(flash ? "#ff0000" : "#440000");
+      vacLight.color.set("#ff0000");
+      vacLight.intensity = flash ? 2.8 : 0.2;
+
+      // Густой чёрный дым
+      vacuum.smokeTimer = (vacuum.smokeTimer || 0) + dt;
+      if (vacuum.smokeTimer > 0.08) {
+        vacuum.smokeTimer = 0;
+        if (KOTO.fx && KOTO.fx.smoke) {
+          KOTO.fx.smoke(vacuum.pos.x, vacuum.pos.y + 0.08, vacuum.pos.z, 1);
+        }
+      }
+
+      // Электрические искры
+      vacuum.sparkTimer = (vacuum.sparkTimer || 0) + dt;
+      if (vacuum.sparkTimer > 0.45) {
+        vacuum.sparkTimer = 0;
+        if (KOTO.fx) {
+          KOTO.fx.sparks(vacuum.pos.x, vacuum.pos.y + 0.08, vacuum.pos.z, 5);
+        }
       }
     }
 
