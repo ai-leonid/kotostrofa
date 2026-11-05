@@ -3,8 +3,9 @@
 // 1) разбивание аквариума НА столешнице спавнит рыбку на открытом полу (не внутри тумбы);
 // 2) шаг квеста засчитывается только при разбивании, а не при любом ударе.
 const puppeteer = require("puppeteer-core");
-const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const BASE = "file:///C:/DEVS/test-agents-space/kotostrofa/index.html";
+const h = require("./helpers");
+const CHROME = h.CHROME;
+const BASE = h.BASE;
 const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
 (async function () {

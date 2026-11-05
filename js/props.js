@@ -236,7 +236,13 @@ function buildProps(scene, world, apt) {
   const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.23, 0.3, 14, 1, true), new THREE.MeshStandardMaterial({ color: "#f5e2b8", emissive: "#ffdf94", emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.9 }));
   lampShade.position.y = 1.58;
   lampG.add(lampShade);
-  register("торшер", 800, lampG, boxShape(0.13, 0.82, 0.13), -6.5, 0.84, -3.9, { mass: 1.0 });
+  const lampLight = new THREE.PointLight("#ffdf94", 0.55, 7, 1.8);
+  lampLight.position.set(-6.5, 1.72, -3.75);
+  scene.add(lampLight);
+  register("торшер", 800, lampG, boxShape(0.13, 0.82, 0.13), -6.5, 0.84, -3.9, {
+    mass: 1.0,
+    onBreak: function () { lampLight.intensity = 0; }
+  });
 
   const mugG = meshCup("#c94a4a");
   register("кружку", 200, mugG, cylShapeY(0.035, 0.09), -4.45, L.coffeeTopY + 0.045, 0.75, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#c94a4a" });
@@ -469,13 +475,13 @@ function buildProps(scene, world, apt) {
   register("мусорное ведро", 350, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.36, 14), std("#9aa0a8", 0.3, 0.7)), cylShapeY(0.16, 0.36), 6.6, 0.18, -2.4, { mass: 0.6 });
 
   // ---------- ВАННАЯ ----------
-  [["шампунь", "#4a8ac9", 0.3], ["шампунь", "#c95a9e", 0.75], ["гель", "#5ea35e", 1.5]].forEach(function (s, i) {
+  [["шампунь", "#4a8ac9", 0.3], ["шампунь", "#c95a9e", 0.7], ["гель", "#5ea35e", 1.1]].forEach(function (s, i) {
     const g = new THREE.Group();
     g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.16, 10), std(s[1], 0.4)));
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 8), std("#f2f2ee", 0.4));
     cap.position.y = 0.095;
     g.add(cap);
-    register(s[0], 250, g, cylShapeY(0.04, 0.17), s[2], L.tubTopY + 0.085, 4.3, { mass: 0.25 });
+    register(s[0], 250, g, cylShapeY(0.04, 0.17), s[2], L.tubTopY + 0.085, 4.42, { mass: 0.25 });
   });
 
   const cupBristlesG = new THREE.Group();
@@ -537,9 +543,73 @@ function buildProps(scene, world, apt) {
   scaleG.add(disp);
   register("весы", 600, scaleG, boxShape(0.16, 0.022, 0.16), 2.8, 0.023, 2.3, { mass: 0.9 });
 
+  // ---------- СПАЛЬНЯ ----------
+  // подушки на кровати
+  [[9.85, -4.08, "#e8ddc9"], [10.55, -4.08, "#d8c9b0"]].forEach(function (a) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.34), std(a[2], 1)));
+    register("подушку", 300, g, boxShape(0.25, 0.06, 0.17), a[0], L.mattressTopY + 0.06, a[1], { mass: 0.3, yaw: (Math.random() - 0.5) * 0.2 });
+  });
+  // телефон на кровати
+  const phoneG = new THREE.Group();
+  phoneG.add(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.01, 0.15), std("#22262b", 0.4)));
+  const phoneScr = new THREE.Mesh(new THREE.PlaneGeometry(0.065, 0.13), new THREE.MeshStandardMaterial({ color: "#0c1420", emissive: "#9fd8ff", emissiveIntensity: 0.5 }));
+  phoneScr.rotation.x = -Math.PI / 2;
+  phoneScr.position.y = 0.006;
+  phoneG.add(phoneScr);
+  register("телефон", 1500, phoneG, boxShape(0.037, 0.005, 0.075), 10.2, L.mattressTopY + 0.006, -3.2, { mass: 0.2, yaw: 0.4 });
+  // будильник на тумбочке
+  const clockG2 = new THREE.Group();
+  clockG2.add(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 16), std("#c94a4a", 0.5)));
+  const clockFace = new THREE.Mesh(new THREE.CircleGeometry(0.045, 16), std("#f2f2ee", 0.4));
+  clockFace.position.set(0, 0.005, 0.045);
+  clockG2.add(clockFace);
+  [-1, 1].forEach(function (s) {
+    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), std("#d8b23a", 0.3, 0.8));
+    bell.position.set(s * 0.03, 0.03, 0);
+    clockG2.add(bell);
+  });
+  register("будильник", 400, clockG2, cylShapeY(0.055, 0.05), 8.78, L.nightstandTopY + 0.03, -4.2, { mass: 0.3, breakable: true, breakVel: 1.8, shardColor: "#c94a4a" });
+  // прикроватная лампа (квест)
+  const bedLampG = new THREE.Group();
+  bedLampG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.025, 12), std("#4a4a52", 0.5, 0.4)));
+  const bedLampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8), std("#4a4a52", 0.5, 0.4));
+  bedLampPole.position.y = 0.11;
+  bedLampG.add(bedLampPole);
+  const bedLampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.12, 12, 1, true), new THREE.MeshStandardMaterial({ color: "#f5e2b8", emissive: "#ffdf94", emissiveIntensity: 0.4, side: THREE.DoubleSide, roughness: 0.9 }));
+  bedLampShade.position.y = 0.27;
+  bedLampG.add(bedLampShade);
+  const bedLampLight = new THREE.PointLight("#ffdf94", 0.4, 5, 1.8);
+  bedLampLight.position.set(9.02, 0.95, -4.08);
+  scene.add(bedLampLight);
+  register("лампу", 900, bedLampG, boxShape(0.07, 0.16, 0.07), 9.02, L.nightstandTopY + 0.16, -4.08, {
+    mass: 0.4, breakable: true, breakVel: 1.6, shardColor: "#f5e2b8",
+    onBreak: function () { bedLampLight.intensity = 0; }
+  });
+  // комод: книги, духи, кружка
+  const bedBookColors = ["#a33c3c", "#3c6ea3", "#c9a03c"];
+  bedBookColors.forEach(function (c, i) {
+    register("книгу", 250, meshBook(c), boxShape(0.025, 0.12, 0.09), 8.35 + i * 0.09, L.dresserTopY + 0.12, 4.28, { mass: 0.3, yaw: (Math.random() - 0.5) * 0.1 });
+  });
+  register("духи", 1100, meshVase(0.14, 0.045, "#d88ac9"), boxShape(0.04, 0.08, 0.04), 8.85, L.dresserTopY + 0.08, 4.28, { mass: 0.2, breakable: true, breakVel: 2.2, shardColor: "#d88ac9" });
+  register("кружку", 200, meshCup("#7a4a9e"), cylShapeY(0.035, 0.09), 9.3, L.dresserTopY + 0.045, 4.15, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#7a4a9e" });
+  // цветок в углу
+  const bedPlantG = new THREE.Group();
+  bedPlantG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.2, 12), std("#b0684a", 0.8)));
+  for (let i = 0; i < 5; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.3, 6), std("#4a8a4e", 0.8));
+    leaf.position.set((Math.random() - 0.5) * 0.1, 0.22, (Math.random() - 0.5) * 0.1);
+    leaf.rotation.set((Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5);
+    bedPlantG.add(leaf);
+  }
+  register("цветок", 550, bedPlantG, cylShapeY(0.11, 0.22), 7.6, 0.11, 3.95, { mass: 0.6, breakable: true, breakVel: 2.2, shardColor: "#b0684a" });
+  // картины на стене спальни
+  hangPicture("картину", 700, 0.55, 0.7, 7.8, 1.6, 4.46, 44);
+  hangPicture("картину", 700, 0.6, 0.45, 9.9, 1.62, 4.46, 55);
+
   // цели для точения когтей
-  [L.rug, L.bathMat, L.sofa, L.catTree].forEach(function (t) {
-    scratchTargets.push({ name: t.name, x: t.x, z: t.z, r: t.r, points: t.points, cd: 0 });
+  [L.rug, L.bathMat, L.sofa, L.catTree, L.bedRug].forEach(function (t) {
+    scratchTargets.push({ name: t.name, x: t.x, z: t.z, r: t.r, points: t.points, cd: 0, questId: t.questId || null });
   });
 
   function update(dt) {

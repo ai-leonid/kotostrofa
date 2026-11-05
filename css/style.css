@@ -47,31 +47,34 @@ html, body {
 #hud-timer.low { color: #ff5a4d; animation: pulse .5s infinite alternate; }
 @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
 
-#hud-quest {
+#hud-quests {
   position: absolute; top: 18px; right: 22px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.hud-quest {
   background: rgba(12,14,24,.72);
   border: 1px solid rgba(255,214,107,.35);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   max-width: 280px;
   backdrop-filter: blur(3px);
 }
-#hud-quest-title { font-weight: 700; font-size: 14px; color: #ffd66b; margin-bottom: 6px; }
-#hud-quest-steps { list-style: none; }
-#hud-quest-steps li {
-  font-size: 13px; padding: 3px 0 3px 24px; position: relative; opacity: .5;
+.hud-quest-title { font-weight: 700; font-size: 13px; color: #ffd66b; margin-bottom: 4px; }
+.hud-quest-steps { list-style: none; }
+.hud-quest-steps li {
+  font-size: 12px; padding: 2px 0 2px 22px; position: relative; opacity: .5;
 }
-#hud-quest-steps li::before {
+.hud-quest-steps li::before {
   content: "○"; position: absolute; left: 4px; color: #8a8f9e;
 }
-#hud-quest-steps li.current { opacity: 1; color: #fff; }
-#hud-quest-steps li.current::before { content: "▶"; color: #ff9d4d; animation: blink 1s infinite; }
-#hud-quest-steps li.done { opacity: .75; color: #9fe08a; text-decoration: line-through; }
-#hud-quest-steps li.done::before { content: "✔"; color: #9fe08a; }
+.hud-quest-steps li.current { opacity: 1; color: #fff; }
+.hud-quest-steps li.current::before { content: "▶"; color: #ff9d4d; animation: blink 1s infinite; }
+.hud-quest-steps li.done { opacity: .75; color: #9fe08a; text-decoration: line-through; }
+.hud-quest-steps li.done::before { content: "✔"; color: #9fe08a; }
 @keyframes blink { 50% { opacity: .25; } }
-#hud-quest-reward { font-size: 11px; opacity: .65; margin-top: 6px; }
-#hud-quest.all-done { border-color: #9fe08a; }
-#hud-quest.all-done #hud-quest-title { color: #9fe08a; }
+.hud-quest-reward { font-size: 10px; opacity: .65; margin-top: 4px; }
+.hud-quest.all-done { border-color: #9fe08a; }
+.hud-quest.all-done .hud-quest-title { color: #9fe08a; }
 
 #hud-feed {
   position: absolute; right: 22px; bottom: 76px;
@@ -205,3 +208,81 @@ h2 {
 #end-quest { margin-top: 16px; font-size: 14px; color: #9fe08a; }
 
 #errlog { display: none; }
+
+/* ---------- Виньетка ---------- */
+#vignette {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(4,6,12,.5) 100%);
+}
+
+/* ---------- Сенсорное управление ---------- */
+#touch-ui { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+#joy-zone {
+  position: absolute; left: 0; bottom: 0;
+  width: 46%; height: 58%;
+  pointer-events: auto; touch-action: none;
+}
+#joy-base {
+  position: absolute; width: 128px; height: 128px; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  border: 2px solid rgba(255,255,255,.25);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+#joy-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(255,214,107,.75);
+  border: 2px solid rgba(255,255,255,.5);
+  box-shadow: 0 2px 10px rgba(0,0,0,.5);
+  transform: translate(-50%, -50%);
+}
+#touch-btns {
+  position: absolute; right: 14px; bottom: 18px;
+  display: grid;
+  grid-template-columns: 64px 76px;
+  grid-template-rows: 64px 76px;
+  gap: 12px;
+  align-items: end;
+  pointer-events: auto;
+}
+.tbtn {
+  font-family: inherit; font-weight: 800; font-size: 14px; letter-spacing: 1px;
+  color: #1d1408;
+  background: rgba(255,214,107,.85);
+  border: 2px solid rgba(255,255,255,.45);
+  border-radius: 50%;
+  width: 64px; height: 64px;
+  touch-action: none;
+  box-shadow: 0 3px 12px rgba(0,0,0,.5);
+}
+.tbtn.big { width: 76px; height: 76px; font-size: 13px; background: rgba(255,157,77,.9); }
+.tbtn:active { transform: scale(.92); filter: brightness(1.15); }
+#tb-jump { grid-column: 2; grid-row: 2; }
+#tb-swipe { grid-column: 1; grid-row: 2; }
+#tb-meow  { grid-column: 2; grid-row: 1; justify-self: end; }
+
+/* ---------- Мобильные устройства ---------- */
+@media (pointer: coarse) {
+  #hud-quests { top: 10px; right: 10px; gap: 6px; }
+  .hud-quest { padding: 6px 9px; max-width: 220px; }
+  .hud-quest-title { font-size: 11px; }
+  .hud-quest-steps li { font-size: 10px; padding-left: 18px; }
+  .hud-quest-reward { font-size: 9px; }
+  #hud-top-left { top: 10px; left: 12px; }
+  #hud-score { font-size: 26px; }
+  #hud-timer { font-size: 28px; }
+  #hud-timer-wrap { top: 8px; }
+  #hud-feed { right: 10px; bottom: 190px; }
+  #hud-feed div { font-size: 11px; }
+  #hud-hint { display: none; }
+  .panel { padding: 26px 20px; max-width: 94vw; max-height: 92vh; overflow-y: auto; }
+  .title { font-size: clamp(38px, 11vw, 74px); }
+  h2 { font-size: clamp(26px, 7vw, 44px); }
+  .big-btn { font-size: 19px; padding: 14px 30px; }
+  .controls-grid { grid-template-columns: repeat(2, 1fr); gap: 8px 14px; }
+  #end-columns { flex-direction: column; gap: 18px; }
+  #end-report { min-width: 0; }
+  #end-total { font-size: 38px; }
+  #banner { font-size: clamp(26px, 8vw, 54px); white-space: normal; text-align: center; width: 92vw; }
+}

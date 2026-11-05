@@ -1,7 +1,8 @@
 "use strict";
 const puppeteer = require("puppeteer-core");
-const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const BASE = "file:///C:/DEVS/test-agents-space/kotostrofa/index.html";
+const h = require("./helpers");
+const CHROME = h.CHROME;
+const BASE = h.BASE;
 const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
 (async function () {

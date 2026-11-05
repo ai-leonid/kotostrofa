@@ -19,6 +19,7 @@
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#0b0e18");
+  scene.fog = new THREE.Fog("#0b0e18", 20, 42);
 
   const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 60);
 
@@ -43,6 +44,21 @@
   const input = { f: false, b: false, l: false, r: false, run: false, jump: false, camYaw: -Math.PI / 2 };
   const IDLE = { f: false, b: false, l: false, r: false, run: false, jump: false, camYaw: input.camYaw };
   const cam = { yaw: -Math.PI / 2, pitch: 0.42, dist: 3.1, smooth: new THREE.Vector3(-3.35, 0.55, 1.6) };
+  const TOUCH = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0 && window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  if (TOUCH) document.body.classList.add("touch");
+
+  if (TOUCH) {
+    const hintEl = document.getElementById("hud-hint");
+    if (hintEl) hintEl.textContent = "джойстик — бегать • до края — рывок • свайп — камера • щепотка — зум";
+    const grid = document.querySelector("#screen-start .controls-grid");
+    if (grid) {
+      grid.innerHTML =
+        '<div><b>джойстик слева</b><span>бегать, до края — рывок</span></div>' +
+        '<div><b>свайп по экрану</b><span>камера, щепотка — зум</span></div>' +
+        '<div><b>ЛАПА</b><span>удар лапой, точить когти</span></div>' +
+        '<div><b>МЯУ / ПРЫЖОК</b><span>кнопки справа</span></div>';
+    }
+  }
 
   const KEYMAP = {
     KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b",
@@ -91,6 +107,111 @@
     cam.dist = Math.max(2.2, Math.min(4.5, cam.dist + e.deltaY * 0.0015));
   }, { passive: true });
 
+  // ---------- сенсорное управление: джойстик ----------
+  const joy = { id: null, bx: 0, by: 0, x: 0, y: 0, mag: 0 };
+  const JOY_R = 52;
+  const joyZone = document.getElementById("joy-zone");
+  const joyBase = document.getElementById("joy-base");
+  const joyKnob = document.getElementById("joy-knob");
+  function joyMove(t) {
+    let dx = t.clientX - joy.bx, dy = t.clientY - joy.by;
+    const d = Math.hypot(dx, dy);
+    if (d > JOY_R) { dx = dx / d * JOY_R; dy = dy / d * JOY_R; }
+    joyKnob.style.transform = "translate(-50%, -50%) translate(" + dx + "px," + dy + "px)";
+    joy.x = dx / JOY_R;
+    joy.y = dy / JOY_R;
+    joy.mag = Math.min(1, Math.hypot(joy.x, joy.y));
+  }
+  joyZone.addEventListener("touchstart", function (e) {
+    e.preventDefault();
+    if (joy.id !== null) return;
+    const t = e.changedTouches[0];
+    joy.id = t.identifier;
+    joy.bx = t.clientX;
+    joy.by = t.clientY;
+    joy.x = 0; joy.y = 0; joy.mag = 0;
+    joyBase.classList.remove("hidden");
+    joyBase.style.left = t.clientX + "px";
+    joyBase.style.top = t.clientY + "px";
+    joyKnob.style.transform = "translate(-50%, -50%)";
+  }, { passive: false });
+  joyZone.addEventListener("touchmove", function (e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joy.id) joyMove(e.changedTouches[i]);
+    }
+  }, { passive: false });
+  function joyEnd(e) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joy.id) {
+        joy.id = null; joy.x = 0; joy.y = 0; joy.mag = 0;
+        input.f = input.b = input.l = input.r = input.run = false;
+        joyBase.classList.add("hidden");
+      }
+    }
+  }
+  joyZone.addEventListener("touchend", joyEnd);
+  joyZone.addEventListener("touchcancel", joyEnd);
+
+  // ---------- сенсорное управление: кнопки ----------
+  function bindBtn(id, fn) {
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", function (e) { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener("mousedown", fn);
+  }
+  bindBtn("tb-jump", function () { input.jump = true; });
+  bindBtn("tb-swipe", swipe);
+  bindBtn("tb-meow", meow);
+
+  // ---------- сенсорное управление: камера (орбита + щепотка) ----------
+  const camTouches = {};
+  let pinchDist = 0;
+  renderer.domElement.addEventListener("touchstart", function (e) {
+    if (KOTO.game.state.mode !== "play") return;
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      camTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+    }
+    const ids = Object.keys(camTouches);
+    if (ids.length === 2) {
+      const a = camTouches[ids[0]], b = camTouches[ids[1]];
+      pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  }, { passive: false });
+  renderer.domElement.addEventListener("touchmove", function (e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      const prev = camTouches[t.identifier];
+      if (!prev) continue;
+      const ids = Object.keys(camTouches);
+      if (ids.length === 1) {
+        cam.yaw -= (t.clientX - prev.x) * 0.006;
+        cam.pitch += (t.clientY - prev.y) * 0.0045;
+        cam.pitch = Math.max(0.05, Math.min(1.2, cam.pitch));
+      }
+      camTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+    }
+    const ids = Object.keys(camTouches);
+    if (ids.length === 2) {
+      const a = camTouches[ids[0]], b = camTouches[ids[1]];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchDist > 0) cam.dist = Math.max(2.2, Math.min(4.5, cam.dist * (pinchDist / Math.max(1, d))));
+      pinchDist = d;
+    }
+  }, { passive: false });
+  function camTouchEnd(e) {
+    for (let i = 0; i < e.changedTouches.length; i++) delete camTouches[e.changedTouches[i].identifier];
+    pinchDist = 0;
+  }
+  renderer.domElement.addEventListener("touchend", camTouchEnd);
+  renderer.domElement.addEventListener("touchcancel", camTouchEnd);
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && KOTO.game.state.mode === "play") KOTO.game.setPaused(true);
+  });
+
   document.addEventListener("pointerlockchange", function () {
     if (AUTO) return;
     const locked = !!document.pointerLockElement;
@@ -103,8 +224,9 @@
     AudioSys.resume();
     AudioSys.click();
     KOTO.game.start(DURATION);
+    if (TOUCH) document.getElementById("touch-ui").classList.remove("hidden");
     setTimeout(function () { document.getElementById("hud-hint").style.opacity = "0.25"; }, 14000);
-    if (!AUTO) { try { renderer.domElement.requestPointerLock(); } catch (e) { /* нет pointer lock — играем так */ } }
+    if (!AUTO && !TOUCH) { try { renderer.domElement.requestPointerLock(); } catch (e) { /* нет pointer lock — играем так */ } }
   });
   document.getElementById("btn-resume").addEventListener("click", function () {
     AudioSys.click();
@@ -165,7 +287,7 @@
       }
     }
     camera.position.set(
-      Math.max(-6.85, Math.min(6.85, px)),
+      Math.max(-10.85, Math.min(10.85, px)),
       Math.max(0.3, Math.min(2.6, py)),
       Math.max(-4.35, Math.min(4.35, pz))
     );
@@ -212,6 +334,13 @@
     const st = KOTO.game.state;
     if (!st.paused) {
       if (st.mode === "play" && BOT) bot(dt);
+      if (TOUCH && joy.id !== null) {
+        input.f = joy.y < -0.35;
+        input.b = joy.y > 0.35;
+        input.l = joy.x < -0.35;
+        input.r = joy.x > 0.35;
+        input.run = joy.mag > 0.92;
+      }
       const inp = st.mode === "play" ? input : IDLE;
       world.step(1 / 60, dt, 3);
       cat.update(dt, inp);
@@ -226,6 +355,7 @@
 
   if (AUTO) {
     document.getElementById("screen-start").classList.add("hidden");
+    if (TOUCH) document.getElementById("touch-ui").classList.remove("hidden");
     KOTO.game.start(DURATION);
   }
 

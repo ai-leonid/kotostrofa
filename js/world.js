@@ -76,6 +76,7 @@ function artTexture(seed) {
 }
 
 function buildApartment(scene, world) {
+  const COARSE = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
   const M = {
     floor: new CANNON.Material("floor"),
     wall: new CANNON.Material("wall"),
@@ -385,6 +386,41 @@ function buildApartment(scene, world) {
   // держатель туалетной бумаги
   box(6.9, 0.72, 3.3, 0.16, 0.05, 0.05, std("#c9ccd2", 0.4), { body: false, cast: false });
 
+  // ---------- СПАЛЬНЯ ----------
+  const bedWoodM = std("#8a6a48", 0.75);
+  const bedDarkM = std("#6b4a33", 0.7);
+  box(10.2, 0.8, -4.4, 1.5, 1.1, 0.09, bedDarkM);                 // изголовье
+  box(10.2, 0.21, -3.35, 1.5, 0.42, 2.05, bedWoodM);              // каркас кровати
+  box(10.2, 0.52, -3.35, 1.42, 0.2, 1.95, std("#efe4d0", 0.95));  // матрас
+  box(10.2, 0.645, -2.95, 1.44, 0.07, 1.1, std("#a34a5e", 0.95)); // одеяло
+  box(8.9, 0.275, -4.15, 0.55, 0.55, 0.5, bedWoodM);              // тумбочка
+  box(8.9, 0.42, -3.885, 0.12, 0.02, 0.02, std("#d8b23a", 0.3, 0.8), { body: false, cast: false });
+  // шкаф
+  box(10.65, 1.03, 4.15, 0.7, 2.06, 0.7, std("#7a5a3a", 0.75));
+  box(10.48, 1.0, 3.785, 0.3, 1.9, 0.04, std("#6b4f34", 0.7), { body: false });
+  box(10.82, 1.0, 3.785, 0.3, 1.9, 0.04, std("#6b4f34", 0.7), { body: false });
+  cyl(10.58, 1.0, 3.755, 0.014, 0.014, 0.09, chrome, { body: false, cast: false });
+  cyl(10.72, 1.0, 3.755, 0.014, 0.014, 0.09, chrome, { body: false, cast: false });
+  // комод с зеркалом
+  box(8.7, 0.43, 4.19, 1.5, 0.86, 0.6, bedWoodM);
+  const mirror = new THREE.Mesh(new THREE.CircleGeometry(0.34, 24), new THREE.MeshStandardMaterial({ color: "#bcd4e8", roughness: 0.05, metalness: 0.6 }));
+  mirror.position.set(8.7, 1.8, 4.46);
+  scene.add(mirror);
+  const mirrorFrame = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.025, 8, 24), bedDarkM);
+  mirrorFrame.position.set(8.7, 1.8, 4.455);
+  scene.add(mirrorFrame);
+  // ковёр (также цель для точения когтей)
+  const bedRugTex = canvasTexture(128, function (g, s) {
+    g.fillStyle = "#7a4a5e"; g.fillRect(0, 0, s, s);
+    g.strokeStyle = "#d8c6a8"; g.lineWidth = 5; g.strokeRect(8, 8, s - 16, s - 16);
+    g.strokeStyle = "#c9803c"; g.lineWidth = 2; g.strokeRect(18, 18, s - 36, s - 36);
+  });
+  const bedRug = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.7), new THREE.MeshStandardMaterial({ map: bedRugTex, roughness: 1 }));
+  bedRug.rotation.x = -Math.PI / 2;
+  bedRug.position.set(9.2, 0.014, -0.9);
+  bedRug.receiveShadow = true;
+  scene.add(bedRug);
+
   // ---------- свет ----------
   const hemi = new THREE.HemisphereLight("#a3947d", "#3a3128", 0.38);
   scene.add(hemi);
@@ -393,9 +429,9 @@ function buildApartment(scene, world) {
   moon.position.set(-4.5, 5.5, -9);
   moon.target.position.set(-3.5, 0, 1.5);
   moon.castShadow = true;
-  moon.shadow.mapSize.set(2048, 2048);
-  moon.shadow.camera.left = -10;
-  moon.shadow.camera.right = 10;
+  moon.shadow.mapSize.set(COARSE ? 1024 : 2048, COARSE ? 1024 : 2048);
+  moon.shadow.camera.left = -11;
+  moon.shadow.camera.right = 13;
   moon.shadow.camera.top = 10;
   moon.shadow.camera.bottom = -10;
   moon.shadow.camera.near = 1;
@@ -414,6 +450,9 @@ function buildApartment(scene, world) {
   const pLiv = new THREE.PointLight("#ffe6c0", 0.4, 10, 1.6);
   pLiv.position.set(-4.2, 2.4, 0.6);
   scene.add(pLiv);
+  const pBed = new THREE.PointLight("#ffd9b0", 0.5, 11, 1.6);
+  pBed.position.set(9.2, 2.4, -0.6);
+  scene.add(pBed);
 
   const L = {
     counterTopY: 0.92,
@@ -421,6 +460,10 @@ function buildApartment(scene, world) {
     coffeeTopY: 0.47,
     tableTopY: 0.8,
     tableAABB: { x1: 1.7, x2: 3.5, z1: -2.5, z2: -1.3, y1: 0.75, y2: 1.55 },
+    bedAABB: { x1: 9.4, x2: 11.0, z1: -4.35, z2: -2.3, y1: 0.45, y2: 1.4 },
+    nightstandTopY: 0.55,
+    dresserTopY: 0.86,
+    mattressTopY: 0.62,
     tvStandTopY: 0.4,
     bookshelf: { x: -4.5, z: -4.2, boardsY: [0.585, 1.085, 1.515] },
     stoveTopY: 0.88,
@@ -430,6 +473,7 @@ function buildApartment(scene, world) {
     bathMat: { x: 0.9, z: 2.9, r: 0.45, name: "коврик", points: 80 },
     sofa: { x: -5.95, z: 0.9, r: 1.1, name: "диван", points: 120 },
     catTree: { x: -6.5, z: 3.15, r: 0.55, name: "когтеточку", points: 50 },
+    bedRug: { x: 9.2, z: -0.9, r: 1.15, name: "ковёр в спальне", points: 100, questId: "bedrug" },
     fishbowlPos: { x: 5.4, y: 1.1, z: -4.2 }
   };
 

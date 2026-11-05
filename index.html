@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>КОТОСТРОФА — кот устраивает хаос</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
@@ -30,10 +30,17 @@ window.addEventListener('error', function (e) {
   <div id="hud-timer-wrap">
     <div id="hud-timer">1:00</div>
   </div>
-  <div id="hud-quest">
-    <div id="hud-quest-title">&#9873; Операция &laquo;Рыбный день&raquo;</div>
-    <ul id="hud-quest-steps"></ul>
-    <div id="hud-quest-reward">награда: +2 000 &#8381;</div>
+  <div id="hud-quests">
+    <div class="hud-quest" id="hud-quest-0">
+      <div class="hud-quest-title">&#9873; Операция &laquo;Рыбный день&raquo;</div>
+      <ul class="hud-quest-steps"></ul>
+      <div class="hud-quest-reward">награда: +2 000 &#8381;</div>
+    </div>
+    <div class="hud-quest" id="hud-quest-1">
+      <div class="hud-quest-title">&#9873; Рейд &laquo;Тихий час&raquo;</div>
+      <ul class="hud-quest-steps"></ul>
+      <div class="hud-quest-reward">награда: +1 500 &#8381;</div>
+    </div>
   </div>
   <div id="hud-feed"></div>
   <div id="hud-hint">
@@ -95,6 +102,19 @@ window.addEventListener('error', function (e) {
 </div>
 
 <div id="errlog" data-stats=""></div>
+<div id="vignette"></div>
+
+<!-- Сенсорное управление (показывается только на тач-устройствах) -->
+<div id="touch-ui" class="hidden">
+  <div id="joy-zone">
+    <div id="joy-base" class="hidden"><div id="joy-knob"></div></div>
+  </div>
+  <div id="touch-btns">
+    <button id="tb-meow" class="tbtn">МЯУ</button>
+    <button id="tb-swipe" class="tbtn">ЛАПА</button>
+    <button id="tb-jump" class="tbtn big">ПРЫЖОК</button>
+  </div>
+</div>
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/cannon.min.js"></script>

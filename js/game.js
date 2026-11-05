@@ -3,11 +3,19 @@
 window.KOTO = window.KOTO || {};
 
 KOTO.game = (function () {
-  const DISHES = ["тарелку", "кружку", "вазу", "банку", "банку кофе", "соль", "вино", "стакан с щётками", "миску с водой", "миску с кормом", "аквариум"];
-  const STEP_TEXTS = [
-    "Запрыгни на кухонный стол",
-    "Сбрось аквариум со столешницы",
-    "Сожри рыбку"
+  const DISHES = ["тарелку", "кружку", "вазу", "банку", "банку кофе", "соль", "вино", "стакан с щётками", "миску с водой", "миску с кормом", "аквариум", "духи"];
+  // факты квестов фиксируются независимо от порядка, цепочка шагов догоняет факты
+  const QUESTS = [
+    {
+      id: "fish", title: "Операция «Рыбный день»", reward: 2000, doneText: "Квест: съел рыбку",
+      steps: ["Запрыгни на кухонный стол", "Сбрось аквариум со столешницы", "Сожри рыбку"],
+      stepFacts: ["tableTop", "fishbowlDown", "fishEaten"]
+    },
+    {
+      id: "bedroom", title: "Рейд «Тихий час»", reward: 1500, doneText: "Квест: спальня разгромлена",
+      steps: ["Запрыгни на кровать", "Разбей прикроватную лампу", "Поточи когти о ковёр в спальне"],
+      stepFacts: ["bedTop", "lampDown", "rugScratched"]
+    }
   ];
 
   const state = {
@@ -16,8 +24,12 @@ KOTO.game = (function () {
     timeLeft: 60, duration: 60,
     broken: 0, dishes: 0,
     events: [], shake: 0,
-    quest: { step: 0, done: false, fishbowlDown: false, tableTop: false, fishEaten: false }
+    quests: {
+      fish: { step: 0, done: false, fishbowlDown: false, tableTop: false, fishEaten: false },
+      bedroom: { step: 0, done: false, bedTop: false, lampDown: false, rugScratched: false }
+    }
   };
+  state.quest = state.quests.fish; // совместимость со старыми тестами
 
   let refs = null;
   let els = {};
@@ -26,11 +38,21 @@ KOTO.game = (function () {
   function fmt(n) { return n.toLocaleString("ru-RU"); }
 
   function cacheEls() {
-    ["hud", "hud-score", "hud-combo", "hud-combo-x", "hud-combo-bar", "hud-timer", "hud-quest",
-      "hud-quest-steps", "hud-feed", "hud-hint", "banner",
+    ["hud", "hud-score", "hud-combo", "hud-combo-x", "hud-combo-bar", "hud-timer",
+      "hud-feed", "hud-hint", "banner",
       "screen-start", "screen-pause", "screen-end", "end-subtitle", "end-report",
       "end-counters", "end-total", "end-rank", "end-quest", "errlog"
     ].forEach(function (id) { els[id] = document.getElementById(id); });
+    els.questCards = [];
+    for (let i = 0; i < QUESTS.length; i++) {
+      const card = document.getElementById("hud-quest-" + i);
+      els.questCards.push({
+        root: card,
+        title: card.querySelector(".hud-quest-title"),
+        steps: card.querySelector(".hud-quest-steps"),
+        reward: card.querySelector(".hud-quest-reward")
+      });
+    }
   }
 
   function comboMult() { return 1 + Math.min(Math.max(state.combo - 1, 0), 8) * 0.25; }
@@ -88,7 +110,8 @@ KOTO.game = (function () {
     const pts = Math.round(prop.value * mult);
     addScore(pts);
     state.broken += 1;
-    if (prop.name === "аквариум") state.quest.fishbowlDown = true;
+    if (prop.name === "аквариум") state.quests.fish.fishbowlDown = true;
+    if (prop.name === "лампу") state.quests.bedroom.lampDown = true;
     if (DISHES.indexOf(prop.name) >= 0) state.dishes += 1;
     record("Разбил: " + prop.name, pts);
     KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 6, prop.body.velocity);
@@ -143,6 +166,7 @@ KOTO.game = (function () {
       const dx = t.x - cp.x, dz = t.z - cp.z;
       if (Math.sqrt(dx * dx + dz * dz) < t.r + 0.5) {
         t.cd = 2.2;
+        if (t.questId === "bedrug") state.quests.bedroom.rugScratched = true;
         const pts = Math.round(t.points * (state.combo > 0 ? comboMult() : 1));
         addScore(pts);
         record("Подрал: " + t.name, pts);
@@ -172,37 +196,41 @@ KOTO.game = (function () {
     }
   }
 
-  function renderQuest() {
-    const q = state.quest;
-    let html = "";
-    for (let i = 0; i < STEP_TEXTS.length; i++) {
-      const cls = i < q.step ? "done" : (i === q.step ? "current" : "");
-      html += '<li class="' + cls + '">' + STEP_TEXTS[i] + "</li>";
+  function renderQuests() {
+    for (let i = 0; i < QUESTS.length; i++) {
+      const qd = QUESTS[i];
+      const q = state.quests[qd.id];
+      const card = els.questCards[i];
+      let html = "";
+      for (let s = 0; s < qd.steps.length; s++) {
+        const cls = s < q.step ? "done" : (s === q.step ? "current" : "");
+        html += '<li class="' + cls + '">' + qd.steps[s] + "</li>";
+      }
+      card.steps.innerHTML = html;
+      card.root.classList.toggle("all-done", q.done);
     }
-    els["hud-quest-steps"].innerHTML = html;
   }
 
-  function completeStep() {
-    const q = state.quest;
+  function completeStep(q) {
+    const qd = QUESTS.filter(function (d) { return state.quests[d.id] === q; })[0];
     q.step += 1;
     AudioSys.tinkle();
     const cp = refs.cat.body.position;
-    if (q.step >= 3) {
+    if (q.step >= qd.steps.length) {
       q.done = true;
-      addScore(2000);
-      record("Квест: съел рыбку", 2000);
-      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +2 000₽", "quest");
-      addFeed("Квест выполнен! +2 000₽");
-      els["hud-quest"].classList.add("all-done");
+      addScore(qd.reward);
+      record(qd.doneText, qd.reward);
+      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +" + fmt(qd.reward) + "₽", "quest");
+      addFeed("«" + qd.title + "» выполнен! +" + fmt(qd.reward) + "₽");
     } else {
-      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "Шаг " + q.step + " из 3 — готово!", "quest");
-      addFeed("Квест: шаг " + q.step + "/3 выполнен");
+      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "Шаг " + q.step + " из " + qd.steps.length + " — готово!", "quest");
+      addFeed("«" + qd.title + "»: шаг " + q.step + "/" + qd.steps.length);
     }
-    renderQuest();
+    renderQuests();
   }
 
   function eatFish() {
-    const q = state.quest;
+    const q = state.quests.fish;
     const fish = KOTO.propsSys.fish;
     refs.world.removeBody(fish.body);
     refs.scene.remove(fish.mesh);
@@ -214,15 +242,26 @@ KOTO.game = (function () {
     floater({ x: cp.x, y: cp.y + 0.4, z: cp.z }, "СЪЕЛ РЫБКУ!", "quest");
   }
 
+  function insideAABB(b, p) {
+    return p.x > b.x1 && p.x < b.x2 && p.z > b.z1 && p.z < b.z2 && p.y > b.y1 && p.y < b.y2;
+  }
+
+  function progressQuest(q) {
+    const qd = QUESTS.filter(function (d) { return state.quests[d.id] === q; })[0];
+    let guard = 0;
+    while (!q.done && guard++ < 3) {
+      const fact = qd.stepFacts[q.step];
+      if (q[fact]) completeStep(q); else break;
+    }
+  }
+
   function questChecks() {
-    const q = state.quest;
+    const Q = state.quests;
     const p = refs.cat.body.position;
     // факты фиксируются независимо от порядка шагов
-    if (!q.tableTop) {
-      const b = refs.L.tableAABB;
-      if (p.x > b.x1 && p.x < b.x2 && p.z > b.z1 && p.z < b.z2 && p.y > b.y1 && p.y < b.y2) q.tableTop = true;
-    }
-    if (!q.fishEaten) {
+    if (!Q.fish.tableTop && insideAABB(refs.L.tableAABB, p)) Q.fish.tableTop = true;
+    if (!Q.bedroom.bedTop && insideAABB(refs.L.bedAABB, p)) Q.bedroom.bedTop = true;
+    if (!Q.fish.fishEaten) {
       const fish = KOTO.propsSys.fish;
       if (fish.alive && fish.body) {
         const dx = fish.body.position.x - p.x, dz = fish.body.position.z - p.z;
@@ -230,14 +269,9 @@ KOTO.game = (function () {
         if (dx * dx + dz * dz < 0.72 && Math.abs(dy) < 0.55) eatFish();
       }
     }
-    // цепочка шагов догоняет уже свершившиеся факты (любой порядок выполнения)
-    let guard = 0;
-    while (!q.done && guard++ < 3) {
-      if (q.step === 0 && q.tableTop) completeStep();
-      else if (q.step === 1 && q.fishbowlDown) completeStep();
-      else if (q.step === 2 && q.fishEaten) completeStep();
-      else break;
-    }
+    // цепочки догоняют уже свершившиеся факты (любой порядок выполнения)
+    progressQuest(Q.fish);
+    progressQuest(Q.bedroom);
   }
 
   let lastTimerText = "";
@@ -302,10 +336,19 @@ KOTO.game = (function () {
     els["end-total"].textContent = fmt(state.score) + " ₽";
     const r = rank(state.score);
     els["end-rank"].innerHTML = '<div class="rank">' + r[0] + '</div><div class="rank-sub">' + r[1] + "</div>";
-    els["end-quest"].textContent = state.quest.done
-      ? "Побочный квест выполнен: рыбка съедена. Свидетелей нет."
-      : "Побочный квест провален: рыбка выжила и запомнила всё.";
-    const stats = { score: state.score, broken: state.broken, dishes: state.dishes, maxCombo: state.maxCombo, quest: state.quest.done, events: rows.length };
+    const questLines = {
+      fish: state.quests.fish.done
+        ? "«Рыбный день» — выполнен: рыбка съедена. Свидетелей нет."
+        : "«Рыбный день» — провален: рыбка выжила и запомнила всё.",
+      bedroom: state.quests.bedroom.done
+        ? "«Тихий час» — выполнен: спальня разгромлена идеально."
+        : "«Тихий час» — провален: спальня осталась недостаточно разгромленной."
+    };
+    els["end-quest"].innerHTML = questLines.fish + "<br>" + questLines.bedroom;
+    const stats = {
+      score: state.score, broken: state.broken, dishes: state.dishes, maxCombo: state.maxCombo,
+      quest: state.quests.fish.done, questBedroom: state.quests.bedroom.done, events: rows.length
+    };
     window.__stats = stats;
     els.errlog.dataset.stats = JSON.stringify(stats);
   }
@@ -333,7 +376,7 @@ KOTO.game = (function () {
       refs = r;
       cacheEls();
       els.floaters = document.getElementById("floaters");
-      renderQuest();
+      renderQuests();
     },
 
     start: function (duration) {
@@ -346,7 +389,7 @@ KOTO.game = (function () {
       els["screen-end"].classList.add("hidden");
       els.hud.classList.remove("hidden");
       lastTimerText = "";
-      renderQuest();
+      renderQuests();
       updateHUD();
     },
 
