@@ -8,10 +8,10 @@ KOTO.levels = (function () {
   // Порог ущерба для прохождения комнаты; бонус времени выдаётся
   // при переходе на уровень этой комнаты (startTime — уровень 1, гостиная).
   const ROOMS = {
-    living:  { name: "Гостиная", target: 22000, timeBonus: 0,  aabb: { x1: -7.0, x2: -1.5, z1: -4.5, z2: 4.5 } },
-    kitchen: { name: "Кухня",    target: 30000, timeBonus: 25, aabb: { x1: -1.5, x2: 7.125, z1: -4.5, z2: 0.6 } },
-    bath:    { name: "Ванная",   target: 11000, timeBonus: 16, aabb: { x1: -1.5, x2: 7.125, z1: 0.6, z2: 4.5 } },
-    bedroom: { name: "Спальня",  target: 13000, timeBonus: 12, aabb: { x1: 7.125, x2: 11.0, z1: -4.5, z2: 4.5 } }
+    living:  { name: "Гостиная", target: 18000, timeBonus: 0,  aabb: { x1: -7.0, x2: -1.5, z1: -4.5, z2: 4.5 } },
+    kitchen: { name: "Кухня",    target: 24000, timeBonus: 40, aabb: { x1: -1.5, x2: 7.125, z1: -4.5, z2: 0.6 } },
+    bath:    { name: "Ванная",   target: 6000,  timeBonus: 30, aabb: { x1: -1.5, x2: 7.125, z1: 0.6, z2: 4.5 } },
+    bedroom: { name: "Спальня",  target: 8000,  timeBonus: 30, aabb: { x1: 7.125, x2: 11.0, z1: -4.5, z2: 4.5 } }
   };
 
   const ORDER = ["living", "kitchen", "bath", "bedroom"];

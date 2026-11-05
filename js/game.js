@@ -707,11 +707,14 @@ KOTO.game = (function () {
   }
 
   function rank(total) {
-    if (total < 30000) return ["Мелкий хулиган", "Мимо вазы теперь лучше не проходить."];
-    if (total < 60000) return ["Сертифицированный вандал", "Ковёр, считай, обновлён. Дизайнерский."];
-    if (total < 95000) return ["Агент Синдиката Хаоса", "Страховая компания отключила телефон."];
-    if (total < 130000) return ["Стихийное бедствие", "Соседи снизу тоже в шоке. И в штукатурке."];
-    return ["КОТОСТРОФА: СУДНЫЙ ДЕНЬ", "Мир уже никогда не станет прежним. Легендарный разгром!"];
+    if (total < 25000) return ["Спящий котик", "Хозяева даже не поняли, что ты просыпался. Слишком лениво.", ""];
+    if (total < 50000) return ["Бытовой пакостник", "Пара разбитых чашек и сброшенный тапок. Ущерб на уровне лёгкого недоразумения.", ""];
+    if (total < 80000) return ["Сертифицированный вандал", "Посуда в осколках, обои в полоску. Хозяева вызывают клининг.", ""];
+    if (total < 115000) return ["Оперативник Синдиката", "Серьёзная работа лапами. Торшеры повержены, занавески пали смертью храбрых.", ""];
+    if (total < 150000) return ["Гроза интерьеров", "Робот-пылесос в панике, кухня в руинах, соседи снизу насторожились.", ""];
+    if (total < 185000) return ["Стихийное бедствие", "Ударная волна кошачьей ярости. Квартире потребуется капитальный евроремонт.", ""];
+    if (total < 225000) return ["Аннигилятор уюта", "Уничтожено буквально всё, до чего дотянулись когти. Страховая компания объявила дефолт.", " rank-annihilator"];
+    return ["КОТОСТРОФА: СУДНЫЙ ДЕНЬ", "Абсолютный математический предел разрушения. Мир уже никогда не станет прежним!", " rank-catastrophe-final"];
   }
 
   function fillEnd(win) {
@@ -734,8 +737,7 @@ KOTO.game = (function () {
     els["end-total"].textContent = fmt(state.score) + " ₽";
     els["end-title"].textContent = win ? "КВАРТИРА РАЗГРОМЛЕНА!" : "ХОЗЯЕВА ВЕРНУЛИСЬ!";
     const r = rank(state.score);
-    const goldCls = state.score >= 130000 ? " rank-catastrophe-final" : "";
-    els["end-rank"].innerHTML = '<div class="rank' + goldCls + '">' + r[0] + '</div><div class="rank-sub">' + r[1] + "</div>";
+    els["end-rank"].innerHTML = '<div class="rank' + r[2] + '">' + r[0] + '</div><div class="rank-sub">' + r[1] + "</div>";
     const questLines = QUESTS.filter(function (qd) { return qd.mandatory; }).map(function (qd) {
       const q = state.quests[qd.id];
       return q.done ? qd.doneText : qd.failText;

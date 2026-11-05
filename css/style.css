@@ -281,6 +281,11 @@ h2 {
 #end-rank .rank {
   font-size: 24px; font-weight: 900; color: #ff9d4d; letter-spacing: 1px;
 }
+#end-rank .rank.rank-annihilator {
+  color: #ff3a3a;
+  text-shadow: 0 0 16px rgba(255, 50, 20, 0.75), 0 2px 4px rgba(0,0,0,0.8);
+  animation: pulse .6s infinite alternate;
+}
 #end-rank .rank.rank-catastrophe-final {
   background: linear-gradient(90deg, #ffe066, #ff4500, #ffd700, #ffffff, #ffe066);
   background-size: 250% auto;
