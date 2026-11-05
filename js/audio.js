@@ -269,5 +269,59 @@ const AudioSys = {
     g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
     o.connect(lp); lp.connect(g); g.connect(this.master);
     o.start(t0); o.stop(t0 + 0.06);
+  },
+
+  doorCreak: function () {
+    if (!this.ctx || !this._gate("doorCreak", 0.3)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(160, t0);
+    o.frequency.linearRampToValueAtTime(240, t0 + 0.25);
+    o.frequency.linearRampToValueAtTime(120, t0 + 0.55);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = 4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+    o.connect(lp); lp.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.65);
+  },
+
+  fanfare: function () {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+    for (let i = 0; i < notes.length; i++) {
+      const o = ctx.createOscillator();
+      o.type = "square";
+      o.frequency.value = notes[i];
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 2600;
+      const g = ctx.createGain();
+      const dt = i * 0.09;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.16, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + (i === notes.length - 1 ? 0.5 : 0.16));
+      o.connect(lp); lp.connect(g); g.connect(this.master);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.55);
+    }
+  },
+
+  recordSting: function () {
+    if (!this.ctx || !this._gate("recordSting", 0.5)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    for (let i = 0; i < 5; i++) {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = 1100 + i * 420 + Math.random() * 120;
+      const g = ctx.createGain();
+      const dt = i * 0.05;
+      g.gain.setValueAtTime(0.14, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.18);
+      o.connect(g); g.connect(this.master);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.22);
+    }
   }
 };

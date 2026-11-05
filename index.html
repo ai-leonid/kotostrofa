@@ -30,18 +30,12 @@ window.addEventListener('error', function (e) {
   <div id="hud-timer-wrap">
     <div id="hud-timer">1:00</div>
   </div>
-  <div id="hud-quests">
-    <div class="hud-quest" id="hud-quest-0">
-      <div class="hud-quest-title">&#9873; Операция &laquo;Рыбный день&raquo;</div>
-      <ul class="hud-quest-steps"></ul>
-      <div class="hud-quest-reward">награда: +2 000 &#8381;</div>
-    </div>
-    <div class="hud-quest" id="hud-quest-1">
-      <div class="hud-quest-title">&#9873; Рейд &laquo;Тихий час&raquo;</div>
-      <ul class="hud-quest-steps"></ul>
-      <div class="hud-quest-reward">награда: +1 500 &#8381;</div>
-    </div>
+  <div id="hud-room">
+    <div id="hud-room-name">Гостиная</div>
+    <div id="hud-room-pts">0 / 4 000 &#8381;</div>
+    <div id="hud-room-bar-wrap"><div id="hud-room-bar"></div></div>
   </div>
+  <div id="hud-quests"></div>
   <div id="hud-feed"></div>
   <div id="hud-hint">
     WASD &mdash; бегать &nbsp;&bull;&nbsp; мышь &mdash; камера &nbsp;&bull;&nbsp; Shift &mdash; рывок &nbsp;&bull;&nbsp;
@@ -56,6 +50,7 @@ window.addEventListener('error', function (e) {
   <div class="panel">
     <h1 class="title">КОТОСТРОФА</h1>
     <p class="subtitle">Кот. Пустая квартира. Одна минута. Максимум хаоса.</p>
+    <div id="start-record" class="record-line hidden"></div>
     <button id="btn-play" class="big-btn">УСТРОИТЬ ХАОС</button>
     <div class="controls-grid">
       <div><b>WASD</b><span>бегать</span></div>
@@ -66,6 +61,7 @@ window.addEventListener('error', function (e) {
       <div><b>E</b><span>мяукнуть</span></div>
     </div>
     <p class="fineprint">Хозяева вернутся через минуту &mdash; они всё узнают.<br>
+    Кот работает на Синдикат: закончи контракт до их прихода &mdash; каждая оставшаяся секунда = 100 &#8381; премии.<br>
     M &mdash; запасная клавиша мяуканья. Всё сделано кодом: без картинок, видео и звуков от нейросетей.</p>
   </div>
 </div>
@@ -89,10 +85,13 @@ window.addEventListener('error', function (e) {
         <h3>Что они увидели</h3>
         <ul id="end-report"></ul>
         <div id="end-counters"></div>
+        <h3 class="rooms-h">Комнаты</h3>
+        <ul id="end-rooms"></ul>
       </div>
       <div id="end-right">
         <h3>Итоговый ущерб</h3>
         <div id="end-total">0 &#8381;</div>
+        <div id="end-record"></div>
         <div id="end-rank"></div>
         <div id="end-quest"></div>
       </div>
@@ -119,6 +118,8 @@ window.addEventListener('error', function (e) {
 <script src="vendor/three.min.js"></script>
 <script src="vendor/cannon.min.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/save.js"></script>
 <script src="js/world.js"></script>
 <script src="js/props.js"></script>
 <script src="js/cat.js"></script>

@@ -263,6 +263,90 @@ function buildApartment(scene, world) {
   box(10.99, 2.18, -1.2, 0.12, 0.12, 1.16, trimMat, { body: false, cast: false });
   cyl(10.9, 1.0, -0.85, 0.035, 0.035, 0.06, std("#d8b23a", 0.3, 0.8), { rz: Math.PI / 2, body: false });
 
+  // ---------- ДВЕРИ УРОВНЕЙ ----------
+  // Заперты физически; открываются (подъём вверх) из game.js при прохождении комнаты.
+  const doors = {};
+  const doorAnims = [];
+
+  function signSprite(text) {
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 64;
+    const g = c.getContext("2d");
+    g.font = "900 40px 'Segoe UI', system-ui, sans-serif";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.shadowColor = "rgba(0,0,0,.9)"; g.shadowBlur = 8;
+    g.fillStyle = "#ffcf6b";
+    g.fillText(text, 128, 34);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    sp.scale.set(1.6, 0.4, 1);
+    return sp;
+  }
+
+  function buildDoor(id, cfg) {
+    const g = new THREE.Group();
+    const w = cfg.width - 0.08;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.7, w), std("#7a5230", 0.7));
+    panel.castShadow = true; panel.receiveShadow = true;
+    g.add(panel);
+    [-0.85, 0.85].forEach(function (dy) {
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.1, w - 0.02), std("#6b4530", 0.7));
+      plank.position.y = dy;
+      g.add(plank);
+    });
+    [-1, 1].forEach(function (s) {
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), std("#d8b23a", 0.3, 0.8));
+      knob.position.set(s * 0.09, -0.05, w / 2 - 0.18);
+      g.add(knob);
+    });
+    g.position.set(cfg.x, 1.35, cfg.z);
+    scene.add(g);
+    const body = new CANNON.Body({ mass: 0, material: M.wall });
+    body.addShape(new CANNON.Box(new CANNON.Vec3(0.07, 1.35, cfg.width / 2)));
+    body.position.set(cfg.x, 1.35, cfg.z);
+    world.addBody(body);
+    const sign = signSprite("→ " + cfg.sign);
+    sign.position.set(cfg.x, 2.32, cfg.z);
+    sign.visible = false;
+    scene.add(sign);
+    const light = new THREE.PointLight("#ffd9a0", 0, 4.5, 1.8);
+    light.position.set(cfg.x, 2.25, cfg.z);
+    scene.add(light);
+    const door = {
+      id: id, isOpen: false, mesh: g, body: body,
+      open: function (immediate) {
+        if (door.isOpen) return;
+        door.isOpen = true;
+        if (AudioSys.doorCreak) AudioSys.doorCreak();
+        if (immediate) finishOpen();
+        else doorAnims.push({ door: door, t: 0 });
+      }
+    };
+    function finishOpen() {
+      world.removeBody(body);
+      g.visible = false;
+      sign.visible = true;
+      light.intensity = 0.7;
+    }
+    door._anim = function (t) { g.position.y = 1.35 + t * 2.8; };
+    door._finish = finishOpen;
+    doors[id] = door;
+  }
+  Object.keys(KOTO.levels.DOORS).forEach(function (id) { buildDoor(id, KOTO.levels.DOORS[id]); });
+
+  function update(dt) {
+    for (let i = doorAnims.length - 1; i >= 0; i--) {
+      const a = doorAnims[i];
+      a.t += dt / 0.8;
+      if (a.t >= 1) {
+        a.door._anim(1);
+        a.door._finish();
+        doorAnims.splice(i, 1);
+      } else {
+        a.door._anim(a.t);
+      }
+    }
+  }
+
   // ---------- фартук кухни и панели ванной (визуально) ----------
   box(2.7, 1.21, -4.46, 8.0, 0.58, 0.04, std("#b7cdc0", 0.5), { body: false, cast: false });
   box(2.75, 0.5, 4.46, 8.7, 1.0, 0.04, std("#9fc0d4", 0.5), { body: false, cast: false });
@@ -471,11 +555,12 @@ function buildApartment(scene, world) {
     tubTopY: 0.58,
     rug: { x: -4.4, z: 0.9, r: 1.2, name: "ковёр", points: 100 },
     bathMat: { x: 0.9, z: 2.9, r: 0.45, name: "коврик", points: 80 },
-    sofa: { x: -5.95, z: 0.9, r: 1.1, name: "диван", points: 120 },
+    sofa: { x: -5.95, z: 0.9, r: 1.1, name: "диван", points: 120, questId: "sofa" },
     catTree: { x: -6.5, z: 3.15, r: 0.55, name: "когтеточку", points: 50 },
     bedRug: { x: 9.2, z: -0.9, r: 1.15, name: "ковёр в спальне", points: 100, questId: "bedrug" },
-    fishbowlPos: { x: 5.4, y: 1.1, z: -4.2 }
+    fishbowlPos: { x: 5.4, y: 1.1, z: -4.2 },
+    rooms: KOTO.levels.ROOMS
   };
 
-  return { M: M, L: L, std: std, box: box, cyl: cyl };
+  return { M: M, L: L, std: std, box: box, cyl: cyl, doors: doors, update: update };
 }

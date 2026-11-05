@@ -16,6 +16,11 @@ function buildProps(scene, world, apt) {
     return s;
   }
 
+  // события мира для counter-квестов (game.js обрабатывает в onWorldEvent)
+  function notify(type, x, z, prop) {
+    if (KOTO.game && KOTO.game.onWorldEvent) KOTO.game.onWorldEvent(type, x, z, prop);
+  }
+
   function register(name, value, group, shape, x, y, z, opts) {
     opts = opts || {};
     const body = new CANNON.Body({ mass: opts.mass || 0.4, material: M.prop });
@@ -37,7 +42,8 @@ function buildProps(scene, world, apt) {
       shardColor: opts.shardColor || "#cccccc",
       broken: false, scoreCd: 0, mass: opts.mass || 0.4,
       onBreak: opts.onBreak || null, onScore: opts.onScore || null,
-      hang: !!opts.hang, released: false
+      hang: !!opts.hang, released: false,
+      room: KOTO.levels.roomOf(x, z)
     };
     body.addEventListener("collide", function (e) {
       if (!e.contact || prop.broken) return;
@@ -247,6 +253,12 @@ function buildProps(scene, world, apt) {
   const mugG = meshCup("#c94a4a");
   register("кружку", 200, mugG, cylShapeY(0.035, 0.09), -4.45, L.coffeeTopY + 0.045, 0.75, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#c94a4a" });
 
+  // дополнительная посуда для квеста «Чаепитие» (гостиная)
+  register("тарелку", 250, meshPlate(), cylShapeY(0.13, 0.03), -4.0, L.coffeeTopY + 0.017, 1.12, { mass: 0.25, breakable: true, breakVel: 1.5, shardColor: "#f2f2ee" });
+  register("тарелку", 250, meshPlate(), cylShapeY(0.13, 0.03), -4.58, L.coffeeTopY + 0.017, 1.12, { mass: 0.25, breakable: true, breakVel: 1.5, shardColor: "#f2f2ee" });
+  register("кружку", 200, meshCup("#4a8a4e"), cylShapeY(0.035, 0.09), -3.95, L.coffeeTopY + 0.045, 0.66, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#4a8a4e" });
+  register("кружку", 200, meshCup("#3c6ea3"), cylShapeY(0.035, 0.09), -4.68, L.coffeeTopY + 0.045, 0.64, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#3c6ea3" });
+
   const remG = new THREE.Group();
   remG.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.16), std("#2a2d33", 0.5)));
   const btn = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.008, 0.02), std("#c94a4a", 0.5));
@@ -275,7 +287,8 @@ function buildProps(scene, world, apt) {
     const prop = {
       name: name, value: value, mesh: g, body: body, mass: 0.4,
       breakable: false, breakVel: 99, shardColor: "#6b4a33", broken: false,
-      scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false
+      scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false,
+      room: KOTO.levels.roomOf(x, z)
     };
     body.addEventListener("collide", function (e) {
       if (!e.contact || prop.broken || !prop.released) return;
@@ -366,6 +379,8 @@ function buildProps(scene, world, apt) {
       spawnWaterDecal(p.x, p.z, 0.42);
       const spot = findOpenFloorSpot(p.x, p.z);
       spawnFish(spot.x, 0.1, spot.z);
+      notify("water", p.x, p.z, prop);
+      notify("fish", spot.x, spot.z, prop);
     }
   });
 
@@ -455,6 +470,7 @@ function buildProps(scene, world, apt) {
       prop._spilled = true;
       AudioSys.splash();
       spawnWaterDecal(prop.body.position.x + 0.15, prop.body.position.z, 0.28);
+      notify("water", prop.body.position.x, prop.body.position.z, prop);
     }
   });
 
@@ -469,6 +485,7 @@ function buildProps(scene, world, apt) {
       if (prop._scattered) return;
       prop._scattered = true;
       spawnKibble(prop.body.position.x, 0.05, prop.body.position.z);
+      notify("kibble", prop.body.position.x, prop.body.position.z, prop);
     }
   });
 
@@ -522,6 +539,7 @@ function buildProps(scene, world, apt) {
     opts.onScore = function (game, prop) {
       const p = prop.body.position;
       spawnPaperBits(p.x, p.y, p.z);
+      notify("paper", p.x, p.z, prop);
     };
     register("бумагу", 60, g, cylShapeY(0.055, 0.09), x, y, z, opts);
   }
@@ -542,6 +560,24 @@ function buildProps(scene, world, apt) {
   disp.position.set(0, 0.026, -0.08);
   scaleG.add(disp);
   register("весы", 600, scaleG, boxShape(0.16, 0.022, 0.16), 2.8, 0.023, 2.3, { mass: 0.9 });
+
+  // дополнительные мелочи для баланса ванной (потолок очков комнаты был ниже порога)
+  function meshTowel(color) {
+    const g = new THREE.Group();
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 12), std(color, 0.95));
+    t.rotation.z = Math.PI / 2;
+    g.add(t);
+    return g;
+  }
+  register("полотенце", 250, meshTowel("#e8e4da"), boxShape(0.15, 0.055, 0.055), 0.52, L.tubTopY + 0.055, 4.42, { mass: 0.2 });
+  register("полотенце", 250, meshTowel("#9ec9e8"), boxShape(0.15, 0.055, 0.055), 1.35, L.tubTopY + 0.055, 4.42, { mass: 0.2 });
+  const dryerG = new THREE.Group();
+  dryerG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.16, 10), std("#c94a4a", 0.4)));
+  const dryerNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.08, 8), std("#2a2d33", 0.4));
+  dryerNozzle.position.y = 0.11;
+  dryerG.add(dryerNozzle);
+  register("фен", 900, dryerG, cylShapeY(0.05, 0.2), 6.18, L.sinkTopY + 0.13, 1.52, { mass: 0.5, breakable: true, breakVel: 2.0, shardColor: "#c94a4a" });
+  register("одеколон", 400, meshBottle("#4a8ac9"), cylShapeY(0.05, 0.27), 6.15, L.sinkTopY + 0.135, 1.28, { mass: 0.4, breakable: true, breakVel: 2.5, shardColor: "#4a8ac9" });
 
   // ---------- СПАЛЬНЯ ----------
   // подушки на кровати

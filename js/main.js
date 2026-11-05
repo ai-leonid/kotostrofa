@@ -7,10 +7,11 @@
   const DURATION = Math.max(5, parseInt(params.get("t") || "60", 10) || 60);
 
   const container = document.getElementById("game");
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const FAST = params.has("fast"); // тесты: ускоренный рендер без теней
+  const renderer = new THREE.WebGLRenderer({ antialias: !FAST });
+  renderer.setPixelRatio(FAST ? 1 : Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !FAST;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -31,6 +32,7 @@
   const apt = buildApartment(scene, world);
   const propsSys = buildProps(scene, world, apt);
   KOTO.propsSys = propsSys;
+  KOTO.apt = apt;
 
   const cat = createCat(scene, world, apt.M, { x: -3.35, y: 0.26, z: 1.6 });
   cat.yaw = Math.PI / 2;
@@ -39,7 +41,12 @@
   for (let i = 0; i < 90; i++) world.step(1 / 60);
   propsSys.props.forEach(function (p) { p.body.sleep(); });
 
-  KOTO.game.init({ scene: scene, world: world, camera: camera, renderer: renderer, cat: cat, L: apt.L });
+  KOTO.game.init({ scene: scene, world: world, camera: camera, renderer: renderer, cat: cat, L: apt.L, apt: apt });
+
+  // отладка: открыть все двери (регрессионные прогоны старых сценариев)
+  if (params.get("unlock") === "all") {
+    Object.keys(apt.doors).forEach(function (id) { apt.doors[id].open(true); });
+  }
 
   const input = { f: false, b: false, l: false, r: false, run: false, jump: false, camYaw: -Math.PI / 2 };
   const IDLE = { f: false, b: false, l: false, r: false, run: false, jump: false, camYaw: input.camYaw };
@@ -345,6 +352,7 @@
       world.step(1 / 60, dt, 3);
       cat.update(dt, inp);
       propsSys.update(dt);
+      apt.update(dt);
       input.jump = false;
     }
     syncMeshes();
@@ -359,7 +367,7 @@
     KOTO.game.start(DURATION);
   }
 
-  window.__dbg = { cam: cam, camera: camera, world: world, input: input };
+  window.__dbg = { cam: cam, camera: camera, world: world, input: input, apt: apt };
 
   requestAnimationFrame(loop);
 })();

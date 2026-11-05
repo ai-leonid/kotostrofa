@@ -42,16 +42,20 @@ const BASE = h.BASE;
   });
   console.log("VISUAL RUN errors:", JSON.stringify(r1.errors), "score:", r1.score);
 
-  // быстрый полный цикл до финала
-  await page.goto(BASE + "?autostart=1&bot=1&t=12");
-  await new Promise(function (r) { setTimeout(r, 22000); });
-  const end = await page.evaluate(function () {
-    return {
-      mode: KOTO.game.state.mode,
-      stats: window.__stats || null,
-      errors: window.__errors
-    };
-  });
+  // быстрый полный цикл до финала (fast=1 — без теней, headless идёт близко к реальному времени)
+  await page.goto(BASE + "?autostart=1&bot=1&t=12&fast=1");
+  let end = null;
+  for (let i = 0; i < 40; i++) {
+    await new Promise(function (r) { setTimeout(r, 1500); });
+    end = await page.evaluate(function () {
+      return {
+        mode: KOTO.game.state.mode,
+        stats: window.__stats || null,
+        errors: window.__errors
+      };
+    });
+    if (end.mode === "over") break;
+  }
   console.log("FINAL:", JSON.stringify(end));
   await page.screenshot({ path: "test/shot_end.png" });
 
