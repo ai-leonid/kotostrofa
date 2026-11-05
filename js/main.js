@@ -4,7 +4,7 @@
   const params = new URLSearchParams(location.search);
   const AUTO = params.has("autostart");
   const BOT = params.has("bot");
-  const DURATION = Math.max(5, parseInt(params.get("t") || "60", 10) || 60);
+  const DURATION = Math.max(5, parseInt(params.get("t") || "45", 10) || 45);
 
   const container = document.getElementById("game");
   const FAST = params.has("fast"); // тесты: ускоренный рендер без теней
@@ -332,10 +332,20 @@
   }
 
   let last = performance.now();
+  let hitStopUntil = 0;
+  window.KOTO = window.KOTO || {};
+  window.KOTO.hitStop = function (ms) {
+    hitStopUntil = performance.now() + (ms || 35);
+  };
+
   function loop(now) {
     requestAnimationFrame(loop);
     let dt = (now - last) / 1000;
     last = now;
+    if (now < hitStopUntil) {
+      renderer.render(scene, camera);
+      return;
+    }
     if (dt > 0.05) dt = 0.05;
     if (dt <= 0) dt = 0.001;
     const st = KOTO.game.state;

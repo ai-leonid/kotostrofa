@@ -8,10 +8,10 @@ KOTO.levels = (function () {
   // Порог ущерба для прохождения комнаты; бонус времени выдаётся
   // при переходе на уровень этой комнаты (startTime — уровень 1, гостиная).
   const ROOMS = {
-    living:  { name: "Гостиная", target: 25000, timeBonus: 0,  aabb: { x1: -7.0, x2: -1.5, z1: -4.5, z2: 4.5 } },
-    kitchen: { name: "Кухня",    target: 45000, timeBonus: 45, aabb: { x1: -1.5, x2: 7.125, z1: -4.5, z2: 0.6 } },
-    bath:    { name: "Ванная",   target: 12000, timeBonus: 40, aabb: { x1: -1.5, x2: 7.125, z1: 0.6, z2: 4.5 } },
-    bedroom: { name: "Спальня",  target: 12000, timeBonus: 35, aabb: { x1: 7.125, x2: 11.0, z1: -4.5, z2: 4.5 } }
+    living:  { name: "Гостиная", target: 22000, timeBonus: 0,  aabb: { x1: -7.0, x2: -1.5, z1: -4.5, z2: 4.5 } },
+    kitchen: { name: "Кухня",    target: 30000, timeBonus: 25, aabb: { x1: -1.5, x2: 7.125, z1: -4.5, z2: 0.6 } },
+    bath:    { name: "Ванная",   target: 11000, timeBonus: 16, aabb: { x1: -1.5, x2: 7.125, z1: 0.6, z2: 4.5 } },
+    bedroom: { name: "Спальня",  target: 13000, timeBonus: 12, aabb: { x1: 7.125, x2: 11.0, z1: -4.5, z2: 4.5 } }
   };
 
   const ORDER = ["living", "kitchen", "bath", "bedroom"];
@@ -19,7 +19,7 @@ KOTO.levels = (function () {
   // Премия Синдиката за скорость: выплачивается ПОСЛЕ КАЖДОЙ пройденной комнаты —
   // весь остаток времени на таймере в этот момент конвертируется в рубли.
   // Кот успел исчезнуть — заказчик платит за нулевой риск срыва контракта.
-  const SPEED_BONUS_PER_SEC = 30;
+  const SPEED_BONUS_PER_SEC = 50;
 
   // Дверные проёмы (из js/world.js: разрывы в перегородках, ширина по стенам).
   // Панель двери строится по этим данным в world.js.

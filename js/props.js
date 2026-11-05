@@ -48,7 +48,9 @@ function buildProps(scene, world, apt) {
     body.addEventListener("collide", function (e) {
       if (!e.contact || prop.broken) return;
       const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
-      if (KOTO.game) KOTO.game.onPropImpact(prop, v);
+      const other = e.body;
+      const isStrike = !!(other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop);
+      if (KOTO.game) KOTO.game.onPropImpact(prop, v, isStrike);
     });
     props.push(prop);
     if (prop.hang) hangProps.push(prop);
@@ -128,14 +130,141 @@ function buildProps(scene, world, apt) {
     return { x: x, z: Math.min(4.3, z + 0.4) };
   }
 
+  const puddles = [
+    { x: 0.9, z: 4.0, r: 0.85 } // ванна с водой
+  ];
+
   function spawnWaterDecal(x, z, r) {
-    const m = new THREE.Mesh(new THREE.CircleGeometry(r || 0.3, 20), new THREE.MeshStandardMaterial({ color: "#5a8ac9", transparent: true, opacity: 0.5, roughness: 0.1 }));
+    const rad = r || 0.3;
+    const m = new THREE.Mesh(new THREE.CircleGeometry(rad, 20), new THREE.MeshStandardMaterial({ color: "#5a8ac9", transparent: true, opacity: 0.5, roughness: 0.1 }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, 0.015 + Math.random() * 0.004, z);
     m.receiveShadow = true;
     scene.add(m);
     transients.push({ mesh: m, body: null, t: 0, life: 60 });
+    puddles.push({ x: x, z: z, r: rad });
   }
+
+  function spawnDust(x, y, z, count) {
+    const n = count || 4;
+    for (let i = 0; i < n; i++) {
+      const geo = new THREE.CircleGeometry(0.04 + Math.random() * 0.03, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: "#d2c8b8", transparent: true, opacity: 0.45, depthWrite: false });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.x = -Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+      m.position.set(x + (Math.random() - 0.5) * 0.16, (y || 0.04) + Math.random() * 0.02, z + (Math.random() - 0.5) * 0.16);
+      scene.add(m);
+      transients.push({
+        mesh: m, body: null, t: 0, life: 0.55 + Math.random() * 0.2,
+        onUpdate: function (tr, dt) {
+          tr.mesh.scale.multiplyScalar(1 + dt * 2.5);
+          tr.mesh.position.y += 0.22 * dt;
+          tr.mesh.material.opacity = Math.max(0, (1 - tr.t / tr.life) * 0.45);
+        }
+      });
+    }
+  }
+
+  function spawnSparks(x, y, z, count) {
+    const n = count || 12;
+    for (let i = 0; i < n; i++) {
+      const s = 0.022 + Math.random() * 0.022;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshBasicMaterial({ color: Math.random() > 0.35 ? "#ffe600" : "#ff8800" }));
+      m.position.set(x, y, z);
+      scene.add(m);
+      const vel = new THREE.Vector3((Math.random() - 0.5) * 4.8, 1.2 + Math.random() * 3.6, (Math.random() - 0.5) * 4.8);
+      transients.push({
+        mesh: m, body: null, t: 0, life: 0.35 + Math.random() * 0.2, vel: vel,
+        onUpdate: function (tr, dt) {
+          tr.mesh.position.addScaledVector(tr.vel, dt);
+          tr.vel.y -= 14 * dt;
+          tr.mesh.scale.setScalar(Math.max(0.1, 1 - tr.t / tr.life));
+        }
+      });
+    }
+  }
+
+  function spawnSplashes(x, y, z, count) {
+    const n = count || 12;
+    for (let i = 0; i < n; i++) {
+      const geo = new THREE.BoxGeometry(0.025, 0.025, 0.025);
+      const mat = new THREE.MeshBasicMaterial({ color: "#60a5fa", transparent: true, opacity: 0.8, depthWrite: false });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x + (Math.random() - 0.5) * 0.12, (y || 0.05) + Math.random() * 0.05, z + (Math.random() - 0.5) * 0.12);
+      scene.add(m);
+      const vel = new THREE.Vector3((Math.random() - 0.5) * 2.8, 1.2 + Math.random() * 2.8, (Math.random() - 0.5) * 2.8);
+      transients.push({
+        mesh: m, body: null, t: 0, life: 0.45 + Math.random() * 0.2, vel: vel,
+        onUpdate: function (tr, dt) {
+          tr.mesh.position.addScaledVector(tr.vel, dt);
+          tr.vel.y -= 12 * dt;
+          if (tr.mesh.position.y < 0.015) { tr.mesh.position.y = 0.015; tr.vel.set(0, 0, 0); }
+          tr.mesh.material.opacity = Math.max(0, (1 - tr.t / tr.life) * 0.8);
+        }
+      });
+    }
+  }
+
+  function spawnFeathers(x, y, z, count) {
+    const n = count || 8;
+    for (let i = 0; i < n; i++) {
+      const geo = new THREE.BoxGeometry(0.045, 0.004, 0.075);
+      const mat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.95, transparent: true, opacity: 0.9, depthWrite: false });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x + (Math.random() - 0.5) * 0.25, (y || 0.1) + Math.random() * 0.2, z + (Math.random() - 0.5) * 0.25);
+      m.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      scene.add(m);
+      const seed = Math.random() * 10;
+      transients.push({
+        mesh: m, body: null, t: 0, life: 1.8 + Math.random() * 0.6, seed: seed,
+        onUpdate: function (tr, dt) {
+          tr.mesh.position.y -= 0.35 * dt;
+          tr.mesh.position.x += Math.sin(tr.t * 6 + tr.seed) * 0.28 * dt;
+          tr.mesh.position.z += Math.cos(tr.t * 5 + tr.seed) * 0.28 * dt;
+          tr.mesh.rotation.x += dt * 1.5;
+          tr.mesh.rotation.y += dt * 2.0;
+          if (tr.mesh.position.y < 0.015) {
+            tr.mesh.position.y = 0.015;
+            tr.life = Math.min(tr.life, tr.t + 0.4);
+          }
+          tr.mesh.material.opacity = Math.max(0, (1 - tr.t / tr.life) * 0.9);
+        }
+      });
+    }
+  }
+
+  function spawnPawPrint(x, z, yaw) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({ color: "#324456", transparent: true, opacity: 0.45, depthWrite: false });
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.024, 8), mat);
+    pad.rotation.x = -Math.PI / 2;
+    g.add(pad);
+    [[-0.015, -0.02], [0, -0.025], [0.015, -0.02]].forEach(function (off) {
+      const toe = new THREE.Mesh(new THREE.CircleGeometry(0.009, 6), mat);
+      toe.rotation.x = -Math.PI / 2;
+      toe.position.set(off[0], 0, off[1]);
+      g.add(toe);
+    });
+    g.position.set(x, 0.012, z);
+    g.rotation.y = yaw || 0;
+    scene.add(g);
+    transients.push({
+      mesh: g, body: null, t: 0, life: 5.0,
+      onUpdate: function (tr, dt) {
+        const op = Math.max(0, (1 - tr.t / tr.life) * 0.45);
+        tr.mesh.children.forEach(function (c) { c.material.opacity = op; });
+      }
+    });
+  }
+
+  const fx = {
+    dust: spawnDust,
+    sparks: spawnSparks,
+    splashes: spawnSplashes,
+    feathers: spawnFeathers,
+    pawPrint: spawnPawPrint
+  };
+  KOTO.fx = fx;
 
   function spawnKibble(x, y, z) {
     for (let i = 0; i < 6; i++) {
@@ -293,7 +422,9 @@ function buildProps(scene, world, apt) {
     body.addEventListener("collide", function (e) {
       if (!e.contact || prop.broken || !prop.released) return;
       const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
-      if (KOTO.game) KOTO.game.onPropImpact(prop, v);
+      const other = e.body;
+      const isStrike = !!(other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop);
+      if (KOTO.game) KOTO.game.onPropImpact(prop, v, isStrike);
     });
     props.push(prop);
     hangProps.push(prop);
@@ -301,6 +432,45 @@ function buildProps(scene, world, apt) {
   }
   hangPicture("картину", 700, 0.55, 0.75, -5.4, 1.6, 4.46, 11);
   hangPicture("картину", 700, 0.65, 0.5, -3.6, 1.5, 4.46, 22);
+
+  function hangCurtain(name, value, cx, y, fz) {
+    const w = 1.6, h = 1.3;
+    const g = new THREE.Group();
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, w + 0.6, 8), std("#6b4a33", 0.6));
+    rod.rotation.z = Math.PI / 2;
+    rod.castShadow = true;
+    g.add(rod);
+    [-1, 1].forEach(function (s) {
+      const cur = new THREE.Mesh(new THREE.BoxGeometry(0.24, h + 0.5, 0.08), std("#7a3a4a", 0.95));
+      cur.position.set(s * (w / 2 + 0.16), -h / 2 - 0.15, 0);
+      cur.castShadow = true;
+      g.add(cur);
+    });
+    scene.add(g);
+
+    const body = new CANNON.Body({ mass: 3.5, material: M.prop, type: CANNON.Body.KINEMATIC });
+    body.addShape(boxShape((w + 0.6) / 2, (h + 0.5) / 2, 0.08));
+    body.position.set(cx, y, fz);
+    world.addBody(body);
+
+    const prop = {
+      name: name, value: value, mesh: g, body: body, mass: 3.5,
+      breakable: false, breakVel: 99, shardColor: "#6b4a33", broken: false,
+      scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false,
+      room: KOTO.levels.roomOf(cx, fz)
+    };
+    body.addEventListener("collide", function (e) {
+      if (!e.contact || prop.broken || !prop.released) return;
+      const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      const other = e.body;
+      const isStrike = !!(other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop);
+      if (KOTO.game) KOTO.game.onPropImpact(prop, v, isStrike);
+    });
+    props.push(prop);
+    hangProps.push(prop);
+    return prop;
+  }
+  hangCurtain("карниз со шторами", 3800, -5.4, 2.44, -4.33);
 
   const clockG = new THREE.Group();
   clockG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.045, 20), std("#f2f2ee", 0.4)));
@@ -383,6 +553,104 @@ function buildProps(scene, world, apt) {
       notify("fish", spot.x, spot.z, prop);
     }
   });
+
+  // ---------- ХОЛОДИЛЬНИК-СЮРПРИЗ (ИНТЕРАКТИВНЫЙ ДЖЕКПОТ) ----------
+  const fridgeG = new THREE.Group();
+  fridgeG.position.set(-0.575, 0.0, -3.85);
+
+  const doorMat = std("#f2f3f5", 0.35, 0.2);
+  const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.82, 0.68), doorMat);
+  doorMesh.position.set(0.025, 0.925, 0.34);
+  doorMesh.castShadow = true;
+  fridgeG.add(doorMesh);
+
+  const fridgeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4, 8), std("#9aa0a6", 0.2, 0.8));
+  fridgeHandle.position.set(0.065, 1.05, 0.62);
+  fridgeG.add(fridgeHandle);
+
+  [[0.065, 1.4, 0.45, "#c94a4a"], [0.065, 1.25, 0.25, "#e8c53c"], [0.065, 0.95, 0.5, "#4a7ac9"]].forEach(function (m) {
+    const mag = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.015, 12), std(m[3], 0.5));
+    mag.rotation.z = Math.PI / 2;
+    mag.position.set(m[0], m[1], m[2]);
+    fridgeG.add(mag);
+  });
+  scene.add(fridgeG);
+
+  function spawnFridgeGroceries() {
+    for (let i = 0; i < 2; i++) {
+      const milkG = new THREE.Group();
+      milkG.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.12), std("#f5f5f5", 0.4)));
+      const top = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.08, 4), std("#4a85c9", 0.5));
+      top.position.y = 0.14; top.rotation.y = Math.PI / 4;
+      milkG.add(top);
+      const milk = register("пачку молока", 120, milkG, boxShape(0.06, 0.11, 0.06),
+        -0.45, 0.8 + i * 0.25, -3.6 + (Math.random() - 0.5) * 0.3,
+        { mass: 0.45, breakable: true, breakVel: 1.6, shardColor: "#f0f0ee",
+          onBreak: function () { spawnWaterDecal(-0.5 + (Math.random() - 0.5) * 0.4, -3.5 + (Math.random() - 0.5) * 0.4, 0.32); }
+        }
+      );
+      milk.body.velocity.set(1.8 + Math.random() * 1.2, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 1.6);
+      milk.body.angularVelocity.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+    }
+    const sausG = new THREE.Group();
+    const sausM = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.32, 12), std("#8a3838", 0.7));
+    sausM.rotation.z = Math.PI / 2;
+    sausG.add(sausM);
+    const saus = register("палку колбасы", 380, sausG, cylShapeY(0.042, 0.32),
+      -0.45, 0.9, -3.4, { mass: 0.5, breakable: false });
+    saus.body.velocity.set(2.2, 0.8, -0.4);
+
+    const cheeseG = new THREE.Group();
+    cheeseG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.09, 14), std("#f2c94c", 0.6)));
+    const cheese = register("головку сыра", 420, cheeseG, cylShapeY(0.12, 0.09),
+      -0.45, 0.7, -3.6, { mass: 0.6, breakable: false });
+    cheese.body.velocity.set(2.0, 0.7, 0.4);
+
+    const jarG = new THREE.Group();
+    jarG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 12), new THREE.MeshStandardMaterial({ color: "#2d5a27", transparent: true, opacity: 0.7, roughness: 0.2 })));
+    const jar = register("банку солений", 280, jarG, cylShapeY(0.07, 0.18),
+      -0.45, 1.1, -3.5, { mass: 0.7, breakable: true, breakVel: 1.8, shardColor: "#3a6a30" });
+    jar.body.velocity.set(2.1, 0.9, -0.2);
+
+    const borschG = new THREE.Group();
+    borschG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.19, 16), std("#882222", 0.4, 0.5)));
+    const bLid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.03, 16), std("#c9ccd2", 0.2, 0.8));
+    bLid.position.y = 0.11;
+    borschG.add(bLid);
+    const pot = register("кастрюлю с борщом", 950, borschG, cylShapeY(0.15, 0.19),
+      -0.4, 0.65, -3.5, { mass: 1.4, breakable: false,
+        onScore: function () {
+          spawnWaterDecal(pot.body.position.x, pot.body.position.z, 0.45);
+          if (KOTO.fx) KOTO.fx.splashes(pot.body.position.x, 0.1, pot.body.position.z, 16);
+        }
+      });
+    pot.body.velocity.set(2.4, 0.5, 0.1);
+  }
+
+  const fridge = {
+    pos: { x: -0.57, y: 0.925, z: -3.5 },
+    doorGroup: fridgeG,
+    opened: false,
+    openAngle: 0,
+    targetAngle: 0,
+    open: function () {
+      if (this.opened) return;
+      this.opened = true;
+      this.targetAngle = 1.95;
+      AudioSys.crash(0.6);
+      if (AudioSys.tinkle) AudioSys.tinkle();
+      if (KOTO.game) {
+        KOTO.game.floater({ x: -0.5, y: 1.2, z: -3.5 }, "ХОЛОДИЛЬНИК РАСПАХНУТ! ДЖЕКПОТ!", "strike");
+        KOTO.game.addFeed("ДЖЕКПОТ! Из холодильника вывалилась гора продуктов!");
+        KOTO.game.state.shake = Math.min(1, KOTO.game.state.shake + 0.5);
+      }
+      if (KOTO.fx) {
+        KOTO.fx.dust(-0.5, 0.1, -3.5, 8);
+      }
+      spawnWaterDecal(-0.35, -3.5, 0.48);
+      spawnFridgeGroceries();
+    }
+  };
 
   // верхняя полка
   const sy = L.shelfY;
@@ -648,10 +916,82 @@ function buildProps(scene, world, apt) {
     scratchTargets.push({ name: t.name, x: t.x, z: t.z, r: t.r, points: t.points, cd: 0, questId: t.questId || null });
   });
 
+  // ---------- РОБОТ-ПЫЛЕСОС «ЖОРКА-3000» ----------
+  const vacG = new THREE.Group();
+  const vacBase = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 18), std("#252830", 0.4, 0.4));
+  vacBase.castShadow = true;
+  vacG.add(vacBase);
+
+  const vacBumper = new THREE.Mesh(new THREE.CylinderGeometry(0.286, 0.286, 0.05, 18), std("#15171c", 0.7));
+  vacBumper.position.y = -0.012;
+  vacG.add(vacBumper);
+
+  const vacTop = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 14), std("#333742", 0.3));
+  vacTop.position.y = 0.045;
+  vacG.add(vacTop);
+
+  const vacLed = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: "#00ff66" }));
+  vacLed.position.set(0, 0.058, 0.1);
+  vacG.add(vacLed);
+
+  const vacSpawn = { x: -3.0, y: 0.042, z: 1.0 };
+  vacG.position.set(vacSpawn.x, vacSpawn.y, vacSpawn.z);
+  scene.add(vacG);
+
+  const vacBody = new CANNON.Body({ mass: 4.5, material: M.prop, type: CANNON.Body.KINEMATIC });
+  vacBody.addShape(cylShapeY(0.28, 0.08));
+  vacBody.position.set(vacSpawn.x, vacSpawn.y, vacSpawn.z);
+  world.addBody(vacBody);
+
+  const vacuum = {
+    mesh: vacG,
+    body: vacBody,
+    led: vacLed,
+    broken: false,
+    scareCd: 0,
+    yaw: 0,
+    targetYaw: 0,
+    turnTimer: 2.5,
+    spinAngle: 0,
+    pos: vacBody.position,
+    room: "living",
+    break: function () {
+      if (this.broken) return;
+      this.broken = true;
+      this.led.material.color.set("#ff1100");
+      if (AudioSys.vacuumBroke) AudioSys.vacuumBroke();
+      if (KOTO.fx) {
+        KOTO.fx.sparks(this.pos.x, this.pos.y + 0.1, this.pos.z, 16);
+        KOTO.fx.dust(this.pos.x, 0.05, this.pos.z, 10);
+      }
+      if (KOTO.game) {
+        const pts = 12000;
+        const mult = KOTO.game.comboMult();
+        const total = Math.round(pts * mult);
+        const r = KOTO.levels.roomOf(this.pos.x, this.pos.z) || "living";
+        KOTO.game.addScore(total, r);
+        KOTO.game.record("Сломал: Робот-пылесос", total);
+        KOTO.game.floater(this.pos, "+12 000 ₽ ЖОРКА-3000 СЛОМАН!", "strike");
+        KOTO.game.addFeed("ЖОРКА-3000 ПОВЕРЖЕН! +" + total.toLocaleString("ru-RU") + " ₽");
+        KOTO.game.state.shake = Math.min(1, KOTO.game.state.shake + 0.6);
+      }
+    }
+  };
+
+  vacBody.addEventListener("collide", function (e) {
+    if (!e.contact || vacuum.broken) return;
+    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+    const other = e.body;
+    if (other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop && v > 1.3) {
+      vacuum.break();
+    }
+  });
+
   function update(dt) {
     for (let i = transients.length - 1; i >= 0; i--) {
       const tr = transients[i];
       tr.t += dt;
+      if (tr.onUpdate) tr.onUpdate(tr, dt);
       if (tr.t > tr.life) {
         if (tr.body) world.removeBody(tr.body);
         scene.remove(tr.mesh);
@@ -673,6 +1013,62 @@ function buildProps(scene, world, apt) {
         }
       }
     }
+    if (fridge.openAngle < fridge.targetAngle) {
+      fridge.openAngle += (fridge.targetAngle - fridge.openAngle) * Math.min(1, 8 * dt);
+      fridge.doorGroup.rotation.y = -fridge.openAngle;
+    }
+    // Обновление Жорки-3000
+    if (!vacuum.broken) {
+      vacuum.turnTimer -= dt;
+      if (vacuum.turnTimer <= 0) {
+        vacuum.turnTimer = 3.5 + Math.random() * 4.0;
+        vacuum.targetYaw = vacuum.yaw + (Math.random() - 0.5) * Math.PI * 1.2;
+      }
+      let boundHit = false;
+      if (vacuum.pos.x < -6.5) { vacuum.targetYaw = Math.PI / 2; boundHit = true; }
+      else if (vacuum.pos.x > 6.5) { vacuum.targetYaw = -Math.PI / 2; boundHit = true; }
+      if (vacuum.pos.z < -4.0) { vacuum.targetYaw = 0; boundHit = true; }
+      else if (vacuum.pos.z > 4.0) { vacuum.targetYaw = Math.PI; boundHit = true; }
+
+      let yd = vacuum.targetYaw - vacuum.yaw;
+      while (yd > Math.PI) yd -= Math.PI * 2;
+      while (yd < -Math.PI) yd += Math.PI * 2;
+      vacuum.yaw += yd * Math.min(1, (boundHit ? 8 : 3) * dt);
+
+      const sp = 1.15;
+      vacuum.pos.x += Math.sin(vacuum.yaw) * sp * dt;
+      vacuum.pos.z += Math.cos(vacuum.yaw) * sp * dt;
+      vacuum.mesh.position.copy(vacuum.pos);
+      vacuum.mesh.rotation.y = vacuum.yaw;
+
+      // Опасность для кота: наезд сбивает комбо в 0!
+      if (KOTO.cat && vacuum.scareCd <= 0) {
+        const cp = KOTO.cat.body.position;
+        const dx = cp.x - vacuum.pos.x, dz = cp.z - vacuum.pos.z;
+        if (Math.hypot(dx, dz) < 0.52 && Math.abs(cp.y - vacuum.pos.y) < 0.45) {
+          vacuum.scareCd = 3.0;
+          KOTO.cat.body.velocity.y = 4.0;
+          KOTO.cat.body.velocity.x += (dx >= 0 ? 2.8 : -2.8);
+          KOTO.cat.body.velocity.z += (dz >= 0 ? 2.8 : -2.8);
+          if (AudioSys.hiss) AudioSys.hiss();
+          if (KOTO.game) {
+            KOTO.game.state.combo = 0;
+            KOTO.game.state.comboT = 0;
+            KOTO.game.floater(cp, "ПЫЛЕСОС! КОМБО СБРОШЕНО!", "break");
+            KOTO.game.addFeed("Жорка-3000 наехал на кота! Серия комбо сброшена!");
+            KOTO.game.state.shake = 0.55;
+          }
+        }
+      }
+      if (vacuum.scareCd > 0) vacuum.scareCd -= dt;
+    } else {
+      vacuum.spinAngle += dt * 7.0;
+      vacuum.mesh.rotation.y = vacuum.spinAngle;
+      if (Math.random() < dt * 3 && KOTO.fx) {
+        KOTO.fx.sparks(vacuum.pos.x, vacuum.pos.y + 0.08, vacuum.pos.z, 2);
+      }
+    }
+
     for (const t of scratchTargets) {
       if (t.cd > 0) t.cd -= dt;
     }
@@ -687,5 +1083,11 @@ function buildProps(scene, world, apt) {
     scene.remove(prop.mesh);
   }
 
-  return { props: props, hangProps: hangProps, transients: transients, scratchTargets: scratchTargets, fish: fish, update: update, removeProp: removeProp, spawnShards: spawnShards };
+  return {
+    props: props, hangProps: hangProps, transients: transients, scratchTargets: scratchTargets,
+    fish: fish, puddles: puddles, fx: fx, fridge: fridge, vacuum: vacuum,
+    update: update, removeProp: removeProp, spawnShards: spawnShards,
+    spawnDust: spawnDust, spawnSparks: spawnSparks, spawnSplashes: spawnSplashes,
+    spawnFeathers: spawnFeathers, spawnPawPrint: spawnPawPrint
+  };
 }

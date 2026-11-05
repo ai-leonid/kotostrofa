@@ -8,7 +8,7 @@ KOTO.game = (function () {
   // цепочка шагов догоняет факты. fact: строка-поле состояния или функция (q, state).
   const QUESTS = [
     {
-      id: "art", room: "living", title: "Арт-критик", reward: 1500, mandatory: true,
+      id: "art", room: "living", title: "Арт-критик", reward: 2500, mandatory: true,
       doneText: "«Арт-критик» — выполнен: экспозиция демонтирована лапой.",
       failText: "«Арт-критик» — провален: торшер уцелел и осуждает.",
       steps: [
@@ -23,7 +23,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "tea", room: "living", title: "Чаепитие", reward: 600, optional: true,
+      id: "tea", room: "living", title: "Чаепитие", reward: 1200, optional: true,
       doneText: "«Чаепитие» — выполнено: сервиз обновлён.",
       steps: [{
         text: function (q) { return "Разбей 3 чашки или тарелки (" + Math.min(3, (q.counted || []).length) + "/3)"; },
@@ -34,12 +34,12 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "speed", room: "living", title: "Разгон", reward: 600, optional: true,
+      id: "speed", room: "living", title: "Разгон", reward: 1000, optional: true,
       doneText: "«Разгон» — выполнен: кот разогрят.",
       steps: [{ text: "Собери комбо ×5", fact: function (q, st) { return st.maxCombo >= 5; } }]
     },
     {
-      id: "fish", room: "kitchen", title: "Операция «Рыбный день»", reward: 2000, mandatory: true,
+      id: "fish", room: "kitchen", title: "Операция «Рыбный день»", reward: 3500, mandatory: true,
       doneText: "«Рыбный день» — выполнен: рыбка съедена. Свидетелей нет.",
       failText: "«Рыбный день» — провален: рыбка выжила и запомнила всё.",
       steps: [
@@ -52,7 +52,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "dishes5", room: "kitchen", title: "Посудомойка", reward: 800, optional: true,
+      id: "dishes5", room: "kitchen", title: "Посудомойка", reward: 1500, optional: true,
       doneText: "«Посудомойка» — выполнена: посуды больше нет.",
       steps: [{
         text: function (q) { return "Разбей 5 предметов посуды (" + Math.min(5, (q.counted || []).length) + "/5)"; },
@@ -63,12 +63,12 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "fry", room: "kitchen", title: "Жарка", reward: 800, optional: true,
+      id: "fry", room: "kitchen", title: "Жарка", reward: 1200, optional: true,
       doneText: "«Жарка» — выполнена: кот на пределе.",
       steps: [{ text: "Собери комбо ×8", fact: function (q, st) { return st.maxCombo >= 8; } }]
     },
     {
-      id: "bathfun", room: "bath", title: "Водные процедуры", reward: 1500, mandatory: true,
+      id: "bathfun", room: "bath", title: "Водные процедуры", reward: 2000, mandatory: true,
       doneText: "«Водные процедуры» — выполнены: ванная утопает.",
       failText: "«Водные процедуры» — провалены: слишком сухо и чисто.",
       steps: [
@@ -87,7 +87,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "foam", room: "bath", title: "Пена", reward: 500, optional: true,
+      id: "foam", room: "bath", title: "Пена", reward: 1000, optional: true,
       doneText: "«Пена» — выполнена: снежный кот.",
       steps: [{
         text: function (q) { return "Разорви 3 рулона бумаги (" + Math.min(3, (q.counted || []).length) + "/3)"; },
@@ -98,7 +98,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "hygiene", room: "bath", title: "Гигиена", reward: 500, optional: true,
+      id: "hygiene", room: "bath", title: "Гигиена", reward: 1000, optional: true,
       doneText: "«Гигиена» — выполнена: раковина пуста.",
       steps: [{
         text: function (q) { return "Сбей всё с раковины (" + Math.min(3, (q.counted || []).length) + "/3)"; },
@@ -110,7 +110,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "bedroom", room: "bedroom", title: "Рейд «Тихий час»", reward: 1500, mandatory: true,
+      id: "bedroom", room: "bedroom", title: "Рейд «Тихий час»", reward: 2000, mandatory: true,
       doneText: "«Тихий час» — выполнен: спальня разгромлена идеально.",
       failText: "«Тихий час» — провален: спальня осталась недостаточно разгромленной.",
       steps: [
@@ -123,7 +123,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "wakeup", room: "bedroom", title: "Побудка", reward: 500, optional: true,
+      id: "wakeup", room: "bedroom", title: "Побудка", reward: 1000, optional: true,
       doneText: "«Побудка» — выполнена: будильник замолчал навсегда.",
       steps: [{ text: "Разбей будильник", fact: "clockBroken" }],
       onEvent: function (q, ev) {
@@ -131,7 +131,7 @@ KOTO.game = (function () {
       }
     },
     {
-      id: "perfume", room: "bedroom", title: "Духи", reward: 500, optional: true,
+      id: "perfume", room: "bedroom", title: "Духи", reward: 1000, optional: true,
       doneText: "«Духи» — выполнены: теперь пахнет хаосом.",
       steps: [{ text: "Разбей флакон духов", fact: "perfumeBroken" }],
       onEvent: function (q, ev) {
@@ -152,8 +152,8 @@ KOTO.game = (function () {
 
   const state = {
     mode: "menu", paused: false,
-    score: 0, combo: 0, comboT: 0, maxCombo: 0,
-    timeLeft: 60, duration: 60,
+    score: 0, combo: 0, comboT: 0, comboMaxT: 1.6, maxCombo: 0,
+    timeLeft: 45, duration: 45,
     broken: 0, dishes: 0,
     events: [], shake: 0,
     room: "living",
@@ -175,11 +175,29 @@ KOTO.game = (function () {
       "hud-feed", "hud-hint", "banner", "hud-quests",
       "hud-room", "hud-room-name", "hud-room-pts", "hud-room-bar",
       "screen-start", "screen-pause", "screen-end", "end-title", "end-subtitle", "end-report",
-      "end-counters", "end-total", "end-rank", "end-quest", "end-record", "end-rooms", "start-record", "errlog"
+      "end-counters", "end-total", "end-rank", "end-quest", "end-record", "end-rooms", "start-record", "errlog", "speed-lines"
     ].forEach(function (id) { els[id] = document.getElementById(id); });
   }
 
-  function comboMult() { return 1 + Math.min(Math.max(state.combo - 1, 0), 8) * 0.25; }
+  function getComboRank(combo) {
+    if (combo >= 100) return { rank: "КОТОСТРОФА", title: "КОТОСТРОФА!", mult: 3.5, cls: "rank-catastrophe" };
+    if (combo >= 75)  return { rank: "SSS", title: "Апокалипсис", mult: 3.0, cls: "rank-sss" };
+    if (combo >= 50)  return { rank: "SS",  title: "Аннигилятор", mult: 2.5, cls: "rank-ss" };
+    if (combo >= 35)  return { rank: "S",   title: "Стихия", mult: 2.1, cls: "rank-s" };
+    if (combo >= 20)  return { rank: "A",   title: "Погромщик", mult: 1.8, cls: "rank-a" };
+    if (combo >= 10)  return { rank: "B",   title: "Дебошир", mult: 1.5, cls: "rank-b" };
+    if (combo >= 5)   return { rank: "C",   title: "Хулиган", mult: 1.2, cls: "rank-c" };
+    return { rank: "D", title: "Обычный кот", mult: 1.0, cls: "rank-d" };
+  }
+
+  function comboMult() { return getComboRank(state.combo).mult; }
+
+  function getComboWindow(combo) {
+    if (combo >= 60) return 0.85;
+    if (combo >= 30) return 1.05;
+    if (combo >= 15) return 1.25;
+    return 1.45;
+  }
 
   let bannerTimer = null;
   function showBanner(text, cls, dur) {
@@ -271,9 +289,16 @@ KOTO.game = (function () {
   }
 
   function comboUp() {
+    const prevRank = getComboRank(state.combo);
     state.combo += 1;
-    state.comboT = 2.5;
+    state.comboMaxT = getComboWindow(state.combo);
+    state.comboT = state.comboMaxT;
     if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+    const newRank = getComboRank(state.combo);
+    if (newRank.key !== prevRank.key && ["s", "ss", "sss", "catastrophe"].indexOf(newRank.key) >= 0) {
+      if (AudioSys.rankSting) AudioSys.rankSting(newRank.key);
+      addFeed("РАНГ КОМБО: " + newRank.name + " (" + newRank.mult + "x)!");
+    }
   }
 
   function addScore(pts, room) {
@@ -301,23 +326,59 @@ KOTO.game = (function () {
     setTimeout(function () { d.remove(); }, 3800);
   }
 
-  function onPropImpact(prop, v) {
+  function onPropImpact(prop, v, isStrike) {
     if (state.mode !== "play" || state.paused) return;
     if (prop.broken || prop.scoreCd > 0) return;
-    if (prop.hang && !prop.released) return;
+    if (prop.hang && (!prop.released || prop.scored)) return;
     if (v < 1.1) return;
     prop.scoreCd = 1.0;
-    comboUp();
+
+    let decay = 1.0;
+    let isFarmingBlocked = false;
+    const now = Date.now();
+
+    if (!prop.breakable || v < prop.breakVel) {
+      if ((now - (prop.lastHitAt || 0)) < 10000) {
+        prop.repeatHits = (prop.repeatHits || 1) + 1;
+      } else {
+        prop.repeatHits = 1;
+      }
+      prop.lastHitAt = now;
+
+      if (prop.repeatHits === 2) decay = 0.4;
+      else if (prop.repeatHits === 3) decay = 0.15;
+      else if (prop.repeatHits >= 4) {
+        decay = 0;
+        isFarmingBlocked = true;
+      }
+    }
+
+    if (!isFarmingBlocked) {
+      comboUp();
+      if (isStrike) comboUp(); // удвоенный бонус к комбо за цепную реакцию (СТРАЙК)
+    }
     const mult = comboMult();
     if (prop.breakable && v >= prop.breakVel) {
       breakProp(prop, v, mult);
     } else {
-      const pts = Math.round(prop.value * mult);
-      addScore(pts, prop.room);
-      record("Сбил: " + prop.name, pts);
-      floater(prop.body.position, "+" + fmt(pts) + "₽", "");
-      addFeed("Сбил: " + prop.name + " +" + fmt(pts) + "₽");
+      const pts = Math.round(prop.value * mult * decay);
+      if (pts > 0) {
+        addScore(pts, prop.room);
+        record("Сбил: " + prop.name, pts);
+        const strikeTxt = isStrike ? "СТРАЙК! " : "";
+        floater(prop.body.position, strikeTxt + "+" + fmt(pts) + "₽" + (decay < 1 ? " (" + Math.round(decay * 100) + "%)" : ""), isStrike ? "strike" : "");
+        addFeed((isStrike ? "СТРАЙК! " : "Сбил: ") + prop.name + " +" + fmt(pts) + "₽" + (decay < 1 ? " (анти-фарм)" : ""));
+      } else {
+        floater(prop.body.position, "0₽ (анти-фарм)", "");
+        addFeed("Сбил: " + prop.name + " — 0 ₽ (анти-фарм: переключись на другой предмет!)");
+      }
       if (v > 2.2) AudioSys.crash(0.3); else AudioSys.thud();
+      if (prop.name === "подушку" && KOTO.fx) {
+        KOTO.fx.feathers(prop.body.position.x, prop.body.position.y + 0.1, prop.body.position.z, 6);
+      }
+      if ((prop.name === "телевизор" || prop.name === "тостер") && v > 1.8 && KOTO.fx) {
+        KOTO.fx.sparks(prop.body.position.x, prop.body.position.y + 0.1, prop.body.position.z, 6);
+      }
       onEvent({ type: "knock", name: prop.name, room: prop.room, prop: prop });
     }
     if (prop.onScore) prop.onScore(api, prop);
@@ -331,6 +392,25 @@ KOTO.game = (function () {
     onEvent({ type: "break", name: prop.name, room: prop.room, prop: prop });
     record("Разбил: " + prop.name, pts);
     KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 6, prop.body.velocity);
+
+    // Hit-stop при сильных разрушениях
+    if (prop.value >= 800 || prop.name === "телевизор" || prop.name === "аквариум") {
+      if (KOTO.hitStop) KOTO.hitStop(35);
+    }
+    // Процедурные частицы
+    if (KOTO.fx) {
+      const bp = prop.body.position;
+      if (prop.name === "телевизор" || prop.name === "тостер" || prop.name === "лампу" || prop.name === "фен") {
+        KOTO.fx.sparks(bp.x, bp.y + 0.1, bp.z, 16);
+      }
+      if (prop.name === "аквариум" || prop.name === "миску с водой") {
+        KOTO.fx.splashes(bp.x, bp.y + 0.2, bp.z, 20);
+      }
+      if (prop.name === "подушку") {
+        KOTO.fx.feathers(bp.x, bp.y + 0.1, bp.z, 12);
+      }
+    }
+
     KOTO.propsSys.removeProp(prop);
     floater(prop.body.position, "+" + fmt(pts) + "₽", "break");
     addFeed("Разбил: " + prop.name + " +" + fmt(pts) + "₽");
@@ -345,10 +425,26 @@ KOTO.game = (function () {
     b.type = CANNON.Body.DYNAMIC;
     b.mass = prop.mass;
     b.updateMassProperties();
-    b.velocity.set((Math.random() - 0.5) * 0.5, 0.3, -(0.5 + Math.random() * 0.8));
-    b.angularVelocity.set((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
+    if (prop.name === "карниз со шторами") {
+      prop.scored = true;
+      b.velocity.set(0, -0.6, 1.4);
+      b.angularVelocity.set(2.8, 0, (Math.random() - 0.5) * 3);
+      state.shake = 1.0;
+      AudioSys.crash(0.8);
+      comboUp();
+      const mult = comboMult();
+      const pts = Math.round(prop.value * mult);
+      addScore(pts, prop.room);
+      record("Сорвал: " + prop.name, pts);
+      floater(b.position, "+3 800 ₽ СРЫВ КАРНИЗА!", "strike");
+      addFeed("СРЫВ КАРНИЗА! Шторы с грохотом рухнули на пол! +" + fmt(pts) + " ₽");
+      if (KOTO.fx) KOTO.fx.dust(b.position.x, 0.1, b.position.z, 14);
+    } else {
+      b.velocity.set((Math.random() - 0.5) * 0.5, 0.3, -(0.5 + Math.random() * 0.8));
+      b.angularVelocity.set((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
+      AudioSys.thud();
+    }
     b.wakeUp();
-    AudioSys.thud();
     onEvent({ type: "hang", room: prop.room, prop: prop });
   }
 
@@ -358,13 +454,21 @@ KOTO.game = (function () {
     cat.swipeT = 0.25;
     const cp = cat.body.position;
     const f = cat.forward();
+    if (KOTO.propsSys && KOTO.propsSys.fridge && !KOTO.propsSys.fridge.opened) {
+      const fp = KOTO.propsSys.fridge.pos;
+      const dx = cp.x - fp.x, dz = cp.z - fp.z;
+      if (Math.hypot(dx, dz) < 1.4) {
+        KOTO.propsSys.fridge.open();
+      }
+    }
     for (const prop of KOTO.propsSys.props) {
       if (prop.broken) continue;
       const p = prop.body.position;
       const dx = p.x - cp.x, dy = p.y - cp.y, dz = p.z - cp.z;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (prop.hang && !prop.released) {
-        if (d < 1.6) releaseHang(prop);
+        const reach = prop.name === "карниз со шторами" ? 2.3 : 1.6;
+        if (d < reach) releaseHang(prop);
         continue;
       }
       if (d > 1.0 || d < 0.001) continue;
@@ -390,6 +494,9 @@ KOTO.game = (function () {
         record("Подрал: " + t.name, pts);
         floater({ x: t.x, y: cp.y + 0.4, z: t.z }, "подрал " + t.name + " +" + pts + "₽", "scratch");
         AudioSys.scratch();
+        if (KOTO.fx && (t.name === "диван" || t.name === "кровать" || t.name === "коврик" || t.name === "ковёр")) {
+          KOTO.fx.feathers(t.x, cp.y + 0.3, t.z, 6);
+        }
       }
     }
   }
@@ -455,10 +562,12 @@ KOTO.game = (function () {
     const cp = refs.cat.body.position;
     if (q.step >= qd.steps.length) {
       q.done = true;
+      const tBonus = qd.mandatory ? 5 : 3;
+      state.timeLeft += tBonus;
       addScore(qd.reward, qd.room);
       record(qd.doneText, qd.reward);
-      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +" + fmt(qd.reward) + "₽", "quest");
-      addFeed("«" + qd.title + "» выполнен! +" + fmt(qd.reward) + "₽");
+      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +" + fmt(qd.reward) + "₽ (+" + tBonus + "с)", "quest");
+      addFeed("«" + qd.title + "» выполнен! +" + fmt(qd.reward) + "₽ (+" + tBonus + " с)");
     } else {
       floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "Шаг " + q.step + " из " + qd.steps.length + " — готово!", "quest");
       addFeed("«" + qd.title + "»: шаг " + q.step + "/" + qd.steps.length);
@@ -522,6 +631,13 @@ KOTO.game = (function () {
         if (dx * dx + dz * dz < 0.72 && Math.abs(dy) < 0.55) eatFish();
       }
     }
+    if (KOTO.propsSys && KOTO.propsSys.fridge && !KOTO.propsSys.fridge.opened) {
+      const fp = KOTO.propsSys.fridge.pos;
+      const dx = p.x - fp.x, dz = p.z - fp.z;
+      if (Math.hypot(dx, dz) < 0.95) {
+        KOTO.propsSys.fridge.open();
+      }
+    }
   }
 
   let lastTimerText = "";
@@ -549,10 +665,25 @@ KOTO.game = (function () {
     }
     if (state.combo > 1 && state.comboT > 0) {
       els["hud-combo"].classList.remove("hidden");
-      els["hud-combo-x"].textContent = "КОМБО ×" + comboMult().toFixed(2).replace(/\.?0+$/, "");
-      els["hud-combo-bar"].style.width = (state.comboT / 2.5 * 100) + "%";
+      const r = getComboRank(state.combo);
+      els["hud-combo-x"].textContent = "КОМБО ×" + r.mult.toFixed(1).replace(/\.0$/, "") + " · " + r.rank;
+      els["hud-combo"].className = r.cls;
+      els["hud-combo-bar"].style.width = (state.comboT / (state.comboMaxT || 1.6) * 100) + "%";
     } else {
       els["hud-combo"].classList.add("hidden");
+      els["hud-combo"].className = "";
+    }
+    const speedLinesEl = els["speed-lines"];
+    if (speedLinesEl) {
+      const catSp = refs && refs.cat && refs.cat.speedSmooth ? refs.cat.speedSmooth : 0;
+      const isSprinting = catSp > 4.6;
+      if (state.mode === "play" && (state.combo >= 50 || (isSprinting && state.combo >= 20))) {
+        speedLinesEl.className = "super-active";
+      } else if (state.mode === "play" && (isSprinting || state.combo >= 20)) {
+        speedLinesEl.className = "active";
+      } else {
+        speedLinesEl.className = "hidden";
+      }
     }
   }
 
@@ -576,11 +707,11 @@ KOTO.game = (function () {
   }
 
   function rank(total) {
-    if (total < 4000) return ["Ласковый пушистик", "Хозяева ничего не заметили. Почти."];
-    if (total < 12000) return ["Мелкий хулиган", "Мимо вазы теперь лучше не проходить."];
-    if (total < 25000) return ["Сертифицированный вандал", "Ковёр, считай, обновлён. Дизайнерский."];
-    if (total < 45000) return ["Агент хаоса", "Страховая компания отключила телефон."];
-    return ["ЛЕГЕНДА КВАРТИРЫ", "Соседи снизу тоже в шоке. И в штукатурке."];
+    if (total < 30000) return ["Мелкий хулиган", "Мимо вазы теперь лучше не проходить."];
+    if (total < 60000) return ["Сертифицированный вандал", "Ковёр, считай, обновлён. Дизайнерский."];
+    if (total < 95000) return ["Агент Синдиката Хаоса", "Страховая компания отключила телефон."];
+    if (total < 130000) return ["Стихийное бедствие", "Соседи снизу тоже в шоке. И в штукатурке."];
+    return ["КОТОСТРОФА: СУДНЫЙ ДЕНЬ", "Мир уже никогда не станет прежним. Легендарный разгром!"];
   }
 
   function fillEnd(win) {
@@ -603,7 +734,8 @@ KOTO.game = (function () {
     els["end-total"].textContent = fmt(state.score) + " ₽";
     els["end-title"].textContent = win ? "КВАРТИРА РАЗГРОМЛЕНА!" : "ХОЗЯЕВА ВЕРНУЛИСЬ!";
     const r = rank(state.score);
-    els["end-rank"].innerHTML = '<div class="rank">' + r[0] + '</div><div class="rank-sub">' + r[1] + "</div>";
+    const goldCls = state.score >= 130000 ? " rank-catastrophe-final" : "";
+    els["end-rank"].innerHTML = '<div class="rank' + goldCls + '">' + r[0] + '</div><div class="rank-sub">' + r[1] + "</div>";
     const questLines = QUESTS.filter(function (qd) { return qd.mandatory; }).map(function (qd) {
       const q = state.quests[qd.id];
       return q.done ? qd.doneText : qd.failText;
@@ -754,7 +886,11 @@ KOTO.game = (function () {
       onEvent({ type: "world", kind: type, room: KOTO.levels.roomOf(x, z), prop: prop || null });
     },
     floater: floater,
-    addFeed: addFeed
+    addFeed: addFeed,
+    getComboRank: getComboRank,
+    comboMult: comboMult,
+    addScore: addScore,
+    record: record
   };
   return api;
 })();

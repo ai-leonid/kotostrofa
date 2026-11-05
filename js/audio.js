@@ -323,5 +323,71 @@ const AudioSys = {
       o.connect(g); g.connect(this.master);
       o.start(t0 + dt); o.stop(t0 + dt + 0.22);
     }
+  },
+
+  hiss: function () {
+    if (!this.ctx || !this._gate("hiss", 0.4)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const src = this._noise(1.8);
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.setValueAtTime(2800, t0);
+    hp.frequency.linearRampToValueAtTime(1400, t0 + 0.35);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t0);
+    g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+    src.connect(hp); hp.connect(g); g.connect(this.master);
+    src.start(t0); src.stop(t0 + 0.4);
+  },
+
+  vacuumBroke: function () {
+    if (!this.ctx || !this._gate("vacuumBroke", 0.5)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(260, t0);
+    o.frequency.exponentialRampToValueAtTime(45, t0 + 0.6);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 1200;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.25, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.65);
+    o.connect(lp); lp.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.7);
+  },
+
+  drift: function () {
+    if (!this.ctx || !this._gate("drift", 0.2)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const src = this._noise(1.4);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800; bp.Q.value = 2.0;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.18, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(t0); src.stop(t0 + 0.18);
+  },
+
+  rankSting: function (rankKey) {
+    if (!this.ctx || !this._gate("rankSting", 0.35)) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const freqs = rankKey === "catastrophe" ? [523, 659, 783, 1046, 1318] :
+                  rankKey === "sss" ? [440, 554, 659, 880] :
+                  rankKey === "ss" ? [392, 493, 587, 783] : [329, 392, 493, 659];
+    for (let i = 0; i < freqs.length; i++) {
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      o.frequency.value = freqs[i];
+      const g = ctx.createGain();
+      const dt = i * 0.055;
+      g.gain.setValueAtTime(0.001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.16, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.26);
+      o.connect(g); g.connect(this.master);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.3);
+    }
   }
 };

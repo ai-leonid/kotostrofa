@@ -25,16 +25,54 @@ html, body {
   font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #ffd66b;
 }
-#hud-combo { margin-top: 4px; }
+#hud-combo { margin-top: 4px; transition: transform .15s ease; }
 #hud-combo-x {
   font-size: 15px; font-weight: 800; color: #ff9d4d;
   text-shadow: 0 0 12px rgba(255,120,40,.8);
+  display: inline-block;
+  transition: all .2s ease;
 }
 #hud-combo-bar-wrap {
   width: 120px; height: 5px; margin-top: 3px;
   background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden;
 }
-#hud-combo-bar { height: 100%; width: 100%; background: #ff9d4d; }
+#hud-combo-bar { height: 100%; width: 100%; background: #ff9d4d; transition: width .08s linear; }
+
+#hud-combo.rank-d #hud-combo-x { color: #cbd5e0; text-shadow: 0 0 8px rgba(203,213,224,.5); }
+#hud-combo.rank-d #hud-combo-bar { background: #cbd5e0; }
+
+#hud-combo.rank-c #hud-combo-x { color: #68d391; text-shadow: 0 0 10px rgba(104,211,145,.7); }
+#hud-combo.rank-c #hud-combo-bar { background: #68d391; }
+
+#hud-combo.rank-b #hud-combo-x { color: #63b3ed; text-shadow: 0 0 10px rgba(99,179,237,.8); }
+#hud-combo.rank-b #hud-combo-bar { background: #63b3ed; }
+
+#hud-combo.rank-a #hud-combo-x { color: #f6ad55; text-shadow: 0 0 12px rgba(246,173,85,.85); }
+#hud-combo.rank-a #hud-combo-bar { background: #f6ad55; }
+
+#hud-combo.rank-s #hud-combo-x { color: #f59e0b; text-shadow: 0 0 14px rgba(245,158,11,.9); font-size: 16px; }
+#hud-combo.rank-s #hud-combo-bar { background: #f59e0b; }
+
+#hud-combo.rank-ss #hud-combo-x { color: #ef4444; text-shadow: 0 0 16px rgba(239,68,68,.9); font-size: 17px; }
+#hud-combo.rank-ss #hud-combo-bar { background: #ef4444; }
+
+#hud-combo.rank-sss #hud-combo-x { color: #ec4899; text-shadow: 0 0 18px rgba(236,72,153,1); font-size: 18px; animation: comboChaosPulse .35s infinite alternate; }
+#hud-combo.rank-sss #hud-combo-bar { background: #ec4899; }
+
+#hud-combo.rank-catastrophe #hud-combo-x {
+  color: #ffd700;
+  text-shadow: 0 0 20px #ffd700, 0 0 35px #ff4500;
+  font-size: 19px;
+  animation: comboChaosPulse .22s infinite alternate;
+}
+#hud-combo.rank-catastrophe #hud-combo-bar {
+  background: linear-gradient(90deg, #ff4500, #ffd700);
+}
+
+@keyframes comboChaosPulse {
+  from { transform: scale(1); filter: brightness(1); }
+  to { transform: scale(1.08); filter: brightness(1.3); }
+}
 
 #hud-timer-wrap {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
@@ -142,6 +180,10 @@ html, body {
 .floater.break { color: #ff8a5a; font-size: 21px; }
 .floater.quest { color: #9fe08a; font-size: 20px; }
 .floater.scratch { color: #b8c7ff; font-size: 14px; }
+.floater.strike {
+  color: #ffd700; font-size: 22px; font-weight: 900;
+  text-shadow: 0 0 16px #ff4500, 0 2px 8px rgba(0,0,0,0.9);
+}
 @keyframes floatUp {
   0% { opacity: 0; margin-top: 0; }
   12% { opacity: 1; }
@@ -231,13 +273,24 @@ h2 {
 #end-counters { margin-top: 12px; font-size: 13px; opacity: .65; line-height: 1.7; }
 #end-right { text-align: center; min-width: 260px; }
 #end-total {
-  font-size: 52px; font-weight: 900; color: #ffd66b;
+  font-size: 42px; font-weight: 900; color: #ffd66b;
   text-shadow: 0 4px 18px rgba(0,0,0,.7);
   font-variant-numeric: tabular-nums;
 }
 #end-rank { margin-top: 12px; }
 #end-rank .rank {
   font-size: 24px; font-weight: 900; color: #ff9d4d; letter-spacing: 1px;
+}
+#end-rank .rank.rank-catastrophe-final {
+  background: linear-gradient(90deg, #ffe066, #ff4500, #ffd700, #ffffff, #ffe066);
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8));
+  animation: goldShine 2.5s linear infinite;
+}
+@keyframes goldShine {
+  to { background-position: 250% center; }
 }
 #end-rank .rank-sub { font-size: 13px; opacity: .7; margin-top: 4px; max-width: 260px; margin-left: auto; margin-right: auto; }
 #end-quest { margin-top: 16px; font-size: 14px; color: #9fe08a; }
@@ -268,6 +321,46 @@ h2 {
 #vignette {
   position: absolute; inset: 0; z-index: 5; pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(4,6,12,.5) 100%);
+}
+
+/* ---------- Speed Lines (эффект скорости и ярости) ---------- */
+#speed-lines {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease;
+  background:
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 42%, rgba(255,255,255,0.06) 72%, rgba(255,180,60,0.18) 100%),
+    repeating-conic-gradient(from 0deg,
+      transparent 0deg 4deg,
+      rgba(255, 255, 255, 0.12) 4.5deg 5.5deg,
+      transparent 6deg 10.5deg,
+      rgba(255, 210, 80, 0.16) 11deg 12deg
+    );
+  mask-image: radial-gradient(ellipse at center, transparent 38%, black 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 38%, black 80%);
+  animation: speedJitter .12s infinite alternate;
+}
+
+#speed-lines.active {
+  opacity: 0.85;
+}
+
+#speed-lines.super-active {
+  opacity: 1;
+  background:
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 36%, rgba(255,100,50,0.14) 70%, rgba(255,50,0,0.28) 100%),
+    repeating-conic-gradient(from 0deg,
+      transparent 0deg 3deg,
+      rgba(255, 220, 50, 0.22) 3.5deg 4.5deg,
+      transparent 5deg 8deg,
+      rgba(255, 70, 20, 0.28) 8.5deg 9.5deg
+    );
+  animation: speedJitter .07s infinite alternate;
+}
+
+@keyframes speedJitter {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.025); }
 }
 
 /* ---------- Сенсорное управление ---------- */
@@ -341,7 +434,7 @@ h2 {
   .controls-grid { grid-template-columns: repeat(2, 1fr); gap: 8px 14px; }
   #end-columns { flex-direction: column; gap: 18px; }
   #end-report { min-width: 0; }
-  #end-total { font-size: 38px; }
+  #end-total { font-size: 32px; }
   #banner { font-size: clamp(26px, 8vw, 54px); white-space: normal; text-align: center; width: 92vw; }
   .record-line { font-size: 12px; margin: -8px 0 14px; }
 }

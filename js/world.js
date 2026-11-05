@@ -242,17 +242,19 @@ function buildApartment(scene, world) {
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: "#9db8ff", transparent: true, opacity: 0.07 }));
     glass.position.set(cx, y0 + h / 2, fz + 0.12);
     scene.add(glass);
-    // шторы и карниз
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, w + 0.5, 8), std("#6b4a33", 0.6));
-    rod.rotation.z = Math.PI / 2;
-    rod.position.set(cx, y0 + h + 0.24, fz + 0.17);
-    scene.add(rod);
-    [-1, 1].forEach(function (s) {
-      const cur = new THREE.Mesh(new THREE.BoxGeometry(0.17, h + 0.4, 0.06), std("#7a3a4a", 0.95));
-      cur.position.set(cx + s * (w / 2 + 0.15), y0 + h / 2 - 0.03, fz + 0.16);
-      cur.castShadow = true;
-      scene.add(cur);
-    });
+    // шторы и карниз (на окне -5.4 висит интерактивный срываемый карниз из props.js)
+    if (cx !== -5.4) {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, w + 0.5, 8), std("#6b4a33", 0.6));
+      rod.rotation.z = Math.PI / 2;
+      rod.position.set(cx, y0 + h + 0.24, fz + 0.17);
+      scene.add(rod);
+      [-1, 1].forEach(function (s) {
+        const cur = new THREE.Mesh(new THREE.BoxGeometry(0.17, h + 0.4, 0.06), std("#7a3a4a", 0.95));
+        cur.position.set(cx + s * (w / 2 + 0.15), y0 + h / 2 - 0.03, fz + 0.16);
+        cur.castShadow = true;
+        scene.add(cur);
+      });
+    }
   }
   window_(-5.4);
   window_(-3.4);
@@ -404,9 +406,6 @@ function buildApartment(scene, world) {
   box(0.6, 1.53, -4.32, 3.8, 0.05, 0.36, shelfMat);
 
   box(-0.95, 0.925, -3.5, 0.75, 1.85, 0.7, std("#e8e8ea", 0.35, 0.25));
-  [[0.3, "#c94a4a", 0.5, 1.4], [1.1, "#e8c53c", -0.15, 1.25], [0.6, "#4a7ac9", 0.25, 0.95]].forEach(function (m) {
-    cyl(-0.565, m[3], -3.5 + m[2], 0.032, 0.032, 0.015, std(m[1], 0.5), { rz: Math.PI / 2, body: false, cast: false });
-  });
 
   box(6.35, 0.425, -4.15, 0.7, 0.85, 0.7, std("#d0d2d6", 0.5));
   box(6.35, 0.865, -4.15, 0.72, 0.03, 0.72, std("#22262b", 0.4));

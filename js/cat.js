@@ -22,15 +22,19 @@ function createCat(scene, world, M, spawn) {
   headG.position.set(0, 0.46, 0.2);
   const skull = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), orange);
   headG.add(skull);
+  const ears = [];
   [-1, 1].forEach(function (s) {
+    const earG = new THREE.Group();
+    earG.position.set(s * 0.085, 0.13, -0.01);
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.11, 4), orange);
-    ear.position.set(s * 0.085, 0.13, -0.01);
     ear.rotation.z = -s * 0.28;
-    headG.add(ear);
+    earG.add(ear);
     const inner = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 4), pink);
-    inner.position.set(s * 0.078, 0.115, 0.015);
+    inner.position.set(-s * 0.007, -0.015, 0.025);
     inner.rotation.z = -s * 0.28;
-    headG.add(inner);
+    earG.add(inner);
+    headG.add(earG);
+    ears.push(earG);
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), new THREE.MeshStandardMaterial({ color: "#1d1d22", roughness: 0.2 }));
     eye.position.set(s * 0.065, 0.03, 0.125);
     headG.add(eye);
@@ -114,10 +118,29 @@ function createCat(scene, world, M, spawn) {
     sync: function () {
       group.position.set(bodyC.position.x, bodyC.position.y - 0.24, bodyC.position.z);
       group.rotation.y = this.yaw;
+      group.rotation.z = this.roll || 0;
     },
 
     update: function (dt, input) {
+      if (dt > 0.1) dt = 0.1;
       const v = bodyC.velocity;
+      const cp = bodyC.position;
+
+      // Определение луж под лапами для дрифта и мокрых следов
+      this.wetTime = this.wetTime || 0;
+      let inPuddle = false;
+      const puddles = (KOTO.propsSys && KOTO.propsSys.puddles) ? KOTO.propsSys.puddles : [];
+      for (let i = 0; i < puddles.length; i++) {
+        const p = puddles[i];
+        const dx = cp.x - p.x, dz = cp.z - p.z;
+        if (dx * dx + dz * dz < (p.r + 0.18) * (p.r + 0.18)) {
+          inPuddle = true;
+          this.wetTime = 5.0;
+          break;
+        }
+      }
+      const isDrifting = this.grounded && (inPuddle || this.wetTime > 4.2);
+
       let dx = 0, dz = 0;
       if (input.f) dz += 1;
       if (input.b) dz -= 1;
@@ -132,35 +155,75 @@ function createCat(scene, world, M, spawn) {
         wx = c * dx - s * dz;
         wz = -s * dx - c * dz;
       }
-      const speed = input.run ? 5.2 : 2.9;
-      const accel = this.grounded ? 11 : 3.5;
+      const speed = isDrifting ? (input.run ? 5.8 : 3.4) : (input.run ? 5.2 : 2.9);
+      const accel = isDrifting ? 3.2 : (this.grounded ? 11 : 3.5);
       const k = Math.min(1, accel * dt);
       v.x += (wx * speed - v.x) * k;
       v.z += (wz * speed - v.z) * k;
+      let turnDelta = 0;
       if (moving) {
         const target = Math.atan2(wx, wz);
         let d = target - this.yaw;
         while (d > Math.PI) d -= Math.PI * 2;
         while (d < -Math.PI) d += Math.PI * 2;
-        this.yaw += d * Math.min(1, 14 * dt);
+        this.yaw += d * Math.min(1, (isDrifting ? 9 : 14) * dt);
+        turnDelta = d;
       }
 
+      const wasGrounded = this.grounded;
       this.grounded = false;
       for (const c of world.contacts) {
         if (c.bi === bodyC || c.bj === bodyC) {
           if (Math.abs(c.ni.y) > 0.45) { this.grounded = true; break; }
         }
       }
-      if (this.grounded) this.airTime = 0;
-      else this.airTime += dt;
+      if (this.grounded) {
+        if (!wasGrounded && this.airTime > 0.15 && KOTO.fx) {
+          KOTO.fx.dust(bodyC.position.x, 0.04, bodyC.position.z, 5);
+        }
+        this.airTime = 0;
+      } else {
+        this.airTime += dt;
+      }
 
       if (input.jump && this.grounded) {
         v.y = 5.0;
         this.grounded = false;
         AudioSys.jump();
+        if (KOTO.fx) KOTO.fx.dust(bodyC.position.x, 0.04, bodyC.position.z, 4);
       }
 
       const sp = Math.hypot(v.x, v.z);
+      if (input.run && moving && this.grounded && Math.random() < dt * 7 && KOTO.fx) {
+        KOTO.fx.dust(bodyC.position.x, 0.04, bodyC.position.z, 2);
+      }
+      if (isDrifting && sp > 1.8 && moving) {
+        if (AudioSys.drift) AudioSys.drift();
+        if (Math.random() < dt * 10 && KOTO.fx) {
+          KOTO.fx.splashes(bodyC.position.x, 0.04, bodyC.position.z, 2);
+        }
+      }
+
+      // Крен корпуса при поворотах на скорости (Banking)
+      const targetRoll = -Math.min(0.26, Math.max(-0.26, turnDelta * (sp / 5.2) * 1.5));
+      this.roll = (this.roll || 0) + (targetRoll - (this.roll || 0)) * Math.min(1, 12 * dt);
+
+      // Прижатые уши при беге и ударе лапой
+      const targetEarBack = (input.run ? 0.48 : 0) + (this.swipeT > 0 ? 0.38 : 0);
+      this.earBack = (this.earBack || 0) + (targetEarBack - (this.earBack || 0)) * Math.min(1, 14 * dt);
+      for (let i = 0; i < ears.length; i++) {
+        ears[i].rotation.x = -this.earBack;
+      }
+
+      // Оставление мокрых следов лапок
+      if (this.wetTime > 0) {
+        this.wetTime -= dt;
+        this.stepAccum = (this.stepAccum || 0) + sp * dt;
+        if (this.stepAccum > 0.32 && this.grounded && KOTO.fx) {
+          this.stepAccum = 0;
+          KOTO.fx.pawPrint(cp.x, cp.z, this.yaw);
+        }
+      }
       this.speedSmooth += (sp - this.speedSmooth) * Math.min(1, 9 * dt);
       this.walkPhase += this.speedSmooth * 4.6 * dt;
       const amp = Math.min(1, this.speedSmooth / 3);
@@ -194,10 +257,17 @@ function createCat(scene, world, M, spawn) {
       this.headYaw += (this.headYawTarget - this.headYaw) * Math.min(1, 4 * dt);
       headG.rotation.y = this.headYaw;
       const t = performance.now() / 1000;
+
+      // Улучшенный хвост с пружинящей инерцией звеньев
+      this.tailLag = this.tailLag || [0, 0, 0, 0];
+      const turnLag = -turnDelta * 1.5 * Math.min(1, sp / 2.5);
       for (let i = 0; i < tailSegs.length; i++) {
-        tailSegs[i].rotation.z = Math.sin(t * 2.2 + i * 0.9) * 0.16;
+        const segTarget = turnLag * (0.35 + i * 0.25);
+        this.tailLag[i] += (segTarget - this.tailLag[i]) * Math.min(1, (14 - i * 2) * dt);
+        tailSegs[i].rotation.z = Math.sin(t * 2.2 + i * 0.9) * 0.16 + this.tailLag[i];
       }
-      tailSegs[0].rotation.x = -0.9 + Math.sin(t * 1.7) * 0.12 + amp * 0.25;
+      const runStretch = input.run ? 0.35 : 0;
+      tailSegs[0].rotation.x = -0.9 + Math.sin(t * 1.7) * 0.12 + amp * 0.28 + runStretch;
       muzzle.scale.setScalar(this.meowT > 0 ? 1.25 : 1);
     }
   };
