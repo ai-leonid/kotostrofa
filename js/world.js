@@ -161,25 +161,46 @@ function buildApartment(scene, world) {
   bathFloor.receiveShadow = true;
   scene.add(bathFloor);
 
+  const bedWoodTex = woodTexture();
+  bedWoodTex.repeat.set(2, 5);
+  const bedFloor = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 9.0), new THREE.MeshStandardMaterial({ map: bedWoodTex, roughness: 0.8 }));
+  bedFloor.rotation.x = -Math.PI / 2;
+  bedFloor.position.set(9.25, 0.0015, 0);
+  bedFloor.receiveShadow = true;
+  scene.add(bedFloor);
+
   // ---------- потолок ----------
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(14.5, 9.5), std("#efe7da", 0.95));
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(18.5, 9.5), std("#efe7da", 0.95));
   ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.set(0, 2.7, 0);
+  ceiling.position.set(2, 2.7, 0);
   scene.add(ceiling);
 
   // ---------- стены ----------
-  const wallMat = std("#d3c2ab", 0.9);
+  function stripeTexture(c1, c2) {
+    return canvasTexture(256, function (g, s) {
+      g.fillStyle = c1;
+      g.fillRect(0, 0, s, s);
+      g.fillStyle = c2;
+      for (let i = 0; i < 8; i += 2) g.fillRect((i * s) / 8, 0, s / 8, s);
+      g.fillStyle = "rgba(60,40,20,0.05)";
+      for (let i = 0; i < 40; i++) g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+    });
+  }
+  const wallMat = new THREE.MeshStandardMaterial({ map: stripeTexture("#d3c2ab", "#cbb69c"), roughness: 0.9 });
   const wallKitMat = std("#c3d4c4", 0.9);
   const wallBathMat = std("#b3c9da", 0.9);
+  const wallBedMat = new THREE.MeshStandardMaterial({ map: stripeTexture("#d9c2ac", "#cfb299"), roughness: 0.9 });
 
   function wall(cx, cz, sx, sz, material) {
     box(cx, 1.35, cz, sx, 2.7, sz, material || wallMat, {});
   }
 
-  wall(0, -4.625, 14.5, 0.25);                       // северная
-  wall(0, 4.625, 14.5, 0.25);                        // южная
+  wall(2, -4.625, 18.5, 0.25);                       // северная
+  wall(2, 4.625, 18.5, 0.25);                        // южная
   wall(-7.125, 0, 0.25, 9.5);                        // западная
-  wall(7.125, 0, 0.25, 9.5, wallKitMat);             // восточная
+  wall(7.125, -3.225, 0.25, 3.05, wallKitMat);       // кухня/спальня: сегмент выше двери
+  wall(7.125, 2.025, 0.25, 5.45, wallKitMat);        // кухня/спальня: сегмент ниже двери
+  wall(11.125, 0, 0.25, 9.5, wallBedMat);            // восточная (спальня)
   wall(-1.5, -3.4, 0.25, 2.2);                       // перегородка: сегмент кухня-верх
   wall(-1.5, 0.25, 0.25, 2.7);                       // перегородка: между дверьми
   wall(-1.5, 3.65, 0.25, 1.7);                       // перегородка: сегмент ванная-низ
@@ -193,6 +214,7 @@ function buildApartment(scene, world) {
   }
   doorTrim(-1.5, -2.36, -1.04);
   doorTrim(-1.5, 1.54, 2.86);
+  doorTrim(7.125, -1.7, -0.7);
 
   // ---------- окна (визуально) ----------
   function window_(cx) {
@@ -219,14 +241,26 @@ function buildApartment(scene, world) {
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: "#9db8ff", transparent: true, opacity: 0.07 }));
     glass.position.set(cx, y0 + h / 2, fz + 0.12);
     scene.add(glass);
+    // шторы и карниз
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, w + 0.5, 8), std("#6b4a33", 0.6));
+    rod.rotation.z = Math.PI / 2;
+    rod.position.set(cx, y0 + h + 0.24, fz + 0.17);
+    scene.add(rod);
+    [-1, 1].forEach(function (s) {
+      const cur = new THREE.Mesh(new THREE.BoxGeometry(0.17, h + 0.4, 0.06), std("#7a3a4a", 0.95));
+      cur.position.set(cx + s * (w / 2 + 0.15), y0 + h / 2 - 0.03, fz + 0.16);
+      cur.castShadow = true;
+      scene.add(cur);
+    });
   }
   window_(-5.4);
   window_(-3.4);
+  window_(8.0);
 
-  // ---------- входная дверь (визуально, кухня/восток) ----------
-  box(6.99, 1.05, -1.2, 0.1, 2.1, 1.0, std("#7a5230", 0.7), { body: false });
-  box(6.99, 2.18, -1.2, 0.12, 0.12, 1.16, trimMat, { body: false, cast: false });
-  cyl(6.9, 1.0, -0.85, 0.035, 0.035, 0.06, std("#d8b23a", 0.3, 0.8), { rz: Math.PI / 2, body: false });
+  // ---------- входная дверь (визуально, за спальней) ----------
+  box(10.99, 1.05, -1.2, 0.1, 2.1, 1.0, std("#7a5230", 0.7), { body: false });
+  box(10.99, 2.18, -1.2, 0.12, 0.12, 1.16, trimMat, { body: false, cast: false });
+  cyl(10.9, 1.0, -0.85, 0.035, 0.035, 0.06, std("#d8b23a", 0.3, 0.8), { rz: Math.PI / 2, body: false });
 
   // ---------- фартук кухни и панели ванной (визуально) ----------
   box(2.7, 1.21, -4.46, 8.0, 0.58, 0.04, std("#b7cdc0", 0.5), { body: false, cast: false });
@@ -300,8 +334,39 @@ function buildApartment(scene, world) {
 
   // ---------- ВАННАЯ ----------
   const bathWhite = std("#eef1f4", 0.35);
-  box(0.9, 0.29, 4.0, 2.0, 0.58, 0.95, bathWhite);
-  box(0.9, 0.5, 4.0, 1.7, 0.34, 0.68, std("#dfe7ec", 0.3), { body: false, cast: false });
+  const chrome = std("#c9ccd2", 0.25, 0.85);
+  // ванна из стенок с реальной полостью
+  box(0.9, 0.29, 3.57, 2.0, 0.58, 0.09, bathWhite);   // бортик северный
+  box(0.9, 0.29, 4.43, 2.0, 0.58, 0.09, bathWhite);   // бортик южный
+  box(-0.055, 0.29, 4.0, 0.09, 0.58, 0.77, bathWhite);// торец западный
+  box(1.855, 0.29, 4.0, 0.09, 0.58, 0.77, bathWhite); // торец восточный
+  box(0.9, 0.08, 4.0, 1.82, 0.16, 0.77, std("#e6ecf2", 0.3)); // дно ванны
+  // бортики сверху
+  box(0.9, 0.6, 3.56, 2.06, 0.05, 0.17, bathWhite, { body: false });
+  box(0.9, 0.6, 4.44, 2.06, 0.05, 0.17, bathWhite, { body: false });
+  box(-0.06, 0.6, 4.0, 0.17, 0.05, 0.95, bathWhite, { body: false });
+  box(1.86, 0.6, 4.0, 0.17, 0.05, 0.95, bathWhite, { body: false });
+  // вода
+  const tubWater = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.7), new THREE.MeshStandardMaterial({ color: "#6aa8d8", transparent: true, opacity: 0.5, roughness: 0.15 }));
+  tubWater.rotation.x = -Math.PI / 2;
+  tubWater.position.set(0.9, 0.38, 4.0);
+  scene.add(tubWater);
+  // смеситель
+  cyl(0.9, 0.66, 4.44, 0.035, 0.045, 0.14, chrome, { body: false });
+  cyl(0.9, 0.9, 4.44, 0.022, 0.022, 0.36, chrome, { body: false });
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.24, 10), chrome);
+  spout.rotation.x = Math.PI / 2;
+  spout.position.set(0.9, 1.06, 4.33);
+  scene.add(spout);
+  cyl(0.68, 0.62, 4.45, 0.032, 0.032, 0.07, chrome, { rx: Math.PI / 2, body: false });
+  cyl(1.12, 0.62, 4.45, 0.032, 0.032, 0.07, chrome, { rx: Math.PI / 2, body: false });
+  // душ: стойка и лейка
+  cyl(1.55, 1.45, 4.44, 0.02, 0.02, 1.7, chrome, { body: false });
+  const showerNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8), chrome);
+  showerNeck.rotation.x = Math.PI / 2;
+  showerNeck.position.set(1.55, 2.26, 4.35);
+  scene.add(showerNeck);
+  cyl(1.55, 2.2, 4.26, 0.09, 0.075, 0.05, chrome, { body: false });
 
   box(5.9, 0.175, 3.9, 0.42, 0.35, 0.5, bathWhite);
   box(5.9, 0.55, 4.28, 0.42, 0.5, 0.24, bathWhite);
@@ -355,7 +420,7 @@ function buildApartment(scene, world) {
     shelfY: 1.555,
     coffeeTopY: 0.47,
     tableTopY: 0.8,
-    tableAABB: { x1: 1.85, x2: 3.35, z1: -2.375, z2: -1.425, y1: 0.8, y2: 1.5 },
+    tableAABB: { x1: 1.7, x2: 3.5, z1: -2.5, z2: -1.3, y1: 0.75, y2: 1.55 },
     tvStandTopY: 0.4,
     bookshelf: { x: -4.5, z: -4.2, boardsY: [0.585, 1.085, 1.515] },
     stoveTopY: 0.88,

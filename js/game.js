@@ -6,7 +6,7 @@ KOTO.game = (function () {
   const DISHES = ["тарелку", "кружку", "вазу", "банку", "банку кофе", "соль", "вино", "стакан с щётками", "миску с водой", "миску с кормом", "аквариум"];
   const STEP_TEXTS = [
     "Запрыгни на кухонный стол",
-    "Сбрось аквариум с тумбы",
+    "Сбрось аквариум со столешницы",
     "Сожри рыбку"
   ];
 
@@ -16,7 +16,7 @@ KOTO.game = (function () {
     timeLeft: 60, duration: 60,
     broken: 0, dishes: 0,
     events: [], shake: 0,
-    quest: { step: 0, done: false, fishbowlDown: false }
+    quest: { step: 0, done: false, fishbowlDown: false, tableTop: false, fishEaten: false }
   };
 
   let refs = null;
@@ -69,7 +69,6 @@ KOTO.game = (function () {
     if (prop.hang && !prop.released) return;
     if (v < 1.1) return;
     prop.scoreCd = 1.0;
-    if (prop.name === "аквариум") state.quest.fishbowlDown = true;
     comboUp();
     const mult = comboMult();
     if (prop.breakable && v >= prop.breakVel) {
@@ -89,6 +88,7 @@ KOTO.game = (function () {
     const pts = Math.round(prop.value * mult);
     addScore(pts);
     state.broken += 1;
+    if (prop.name === "аквариум") state.quest.fishbowlDown = true;
     if (DISHES.indexOf(prop.name) >= 0) state.dishes += 1;
     record("Разбил: " + prop.name, pts);
     KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 6, prop.body.velocity);
@@ -202,29 +202,41 @@ KOTO.game = (function () {
   }
 
   function eatFish() {
+    const q = state.quest;
     const fish = KOTO.propsSys.fish;
     refs.world.removeBody(fish.body);
     refs.scene.remove(fish.mesh);
     fish.alive = false;
+    q.fishEaten = true;
     AudioSys.nom();
-    completeStep();
+    const cp = refs.cat.body.position;
+    addFeed("Рыбка съедена. Свидетелей нет.");
+    floater({ x: cp.x, y: cp.y + 0.4, z: cp.z }, "СЪЕЛ РЫБКУ!", "quest");
   }
 
   function questChecks() {
     const q = state.quest;
-    if (q.step === 0) {
-      const b = refs.L.tableAABB, p = refs.cat.body.position;
-      if (p.x > b.x1 && p.x < b.x2 && p.z > b.z1 && p.z < b.z2 && p.y > b.y1 && p.y < b.y2) completeStep();
-    } else if (q.step === 1) {
-      if (q.fishbowlDown) completeStep();
-    } else if (q.step === 2 && !q.done) {
+    const p = refs.cat.body.position;
+    // факты фиксируются независимо от порядка шагов
+    if (!q.tableTop) {
+      const b = refs.L.tableAABB;
+      if (p.x > b.x1 && p.x < b.x2 && p.z > b.z1 && p.z < b.z2 && p.y > b.y1 && p.y < b.y2) q.tableTop = true;
+    }
+    if (!q.fishEaten) {
       const fish = KOTO.propsSys.fish;
       if (fish.alive && fish.body) {
-        const p = refs.cat.body.position;
         const dx = fish.body.position.x - p.x, dz = fish.body.position.z - p.z;
         const dy = fish.body.position.y - p.y;
         if (dx * dx + dz * dz < 0.72 && Math.abs(dy) < 0.55) eatFish();
       }
+    }
+    // цепочка шагов догоняет уже свершившиеся факты (любой порядок выполнения)
+    let guard = 0;
+    while (!q.done && guard++ < 3) {
+      if (q.step === 0 && q.tableTop) completeStep();
+      else if (q.step === 1 && q.fishbowlDown) completeStep();
+      else if (q.step === 2 && q.fishEaten) completeStep();
+      else break;
     }
   }
 

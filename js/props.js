@@ -108,6 +108,20 @@ function buildProps(scene, world, apt) {
     }
   }
 
+  // ищет ближайшую открытую точку пола: по вертикальному лучу сверху не должно быть ничего выше y 0.2
+  function findOpenFloorSpot(x, z) {
+    const offs = [[0, 0], [0, 0.35], [0.35, 0], [-0.35, 0], [0, 0.7], [0.5, 0.5], [-0.5, 0.5], [0, 1.05], [0.85, 0.85], [-0.85, 0.85], [1.3, 0], [-1.3, 0]];
+    for (let i = 0; i < offs.length; i++) {
+      const cx = Math.max(-6.5, Math.min(6.5, x + offs[i][0]));
+      const cz = Math.max(-4.3, Math.min(4.3, z + offs[i][1]));
+      const ray = new CANNON.Ray(new CANNON.Vec3(cx, 2.0, cz), new CANNON.Vec3(cx, 0, cz));
+      const res = new CANNON.RaycastResult();
+      ray.intersectWorld(world, { mode: CANNON.Ray.CLOSEST, result: res, skipBackfaces: true, collisionFilterMask: 1 });
+      if (res.hasHit && res.hitPointWorld.y < 0.2) return { x: cx, z: cz };
+    }
+    return { x: x, z: Math.min(4.3, z + 0.4) };
+  }
+
   function spawnWaterDecal(x, z, r) {
     const m = new THREE.Mesh(new THREE.CircleGeometry(r || 0.3, 20), new THREE.MeshStandardMaterial({ color: "#5a8ac9", transparent: true, opacity: 0.5, roughness: 0.1 }));
     m.rotation.x = -Math.PI / 2;
@@ -147,16 +161,17 @@ function buildProps(scene, world, apt) {
 
   function spawnFish(x, y, z) {
     const g = new THREE.Group();
-    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.035, 0.045), std("#e87c2a", 0.5));
+    const fishMat = new THREE.MeshStandardMaterial({ color: "#f08c2e", emissive: "#b04a12", emissiveIntensity: 0.55, roughness: 0.5 });
+    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.06), fishMat);
     g.add(bodyM);
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.04, 6), std("#d05a1a", 0.5));
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.055, 6), fishMat);
     tail.rotation.z = Math.PI / 2;
-    tail.position.x = -0.06;
+    tail.position.x = -0.085;
     g.add(tail);
     g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
     scene.add(g);
     const body = new CANNON.Body({ mass: 0.06, material: M.prop });
-    body.addShape(boxShape(0.045, 0.018, 0.0225));
+    body.addShape(boxShape(0.06, 0.025, 0.03));
     body.position.set(x, Math.max(y, 0.06), z);
     body.allowSleep = false;
     world.addBody(body);
@@ -329,10 +344,11 @@ function buildProps(scene, world, apt) {
   const bowlG = new THREE.Group();
   const glass = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshStandardMaterial({ color: "#bfe3ff", roughness: 0.05, transparent: true, opacity: 0.3 }));
   bowlG.add(glass);
-  const waterIn = new THREE.Mesh(new THREE.SphereGeometry(0.148, 14, 10), new THREE.MeshStandardMaterial({ color: "#5a9ad8", roughness: 0.1, transparent: true, opacity: 0.5 }));
+  const waterIn = new THREE.Mesh(new THREE.SphereGeometry(0.148, 14, 10), new THREE.MeshStandardMaterial({ color: "#4a90d8", roughness: 0.1, transparent: true, opacity: 0.65 }));
   waterIn.position.y = -0.02;
   bowlG.add(waterIn);
-  const fishIn = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.035, 0.04), std("#e87c2a", 0.5));
+  const fishInMat = new THREE.MeshStandardMaterial({ color: "#f08c2e", emissive: "#b04a12", emissiveIntensity: 0.55, roughness: 0.5 });
+  const fishIn = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.055), fishInMat);
   fishIn.position.y = -0.03;
   bowlG.add(fishIn);
   const fp = L.fishbowlPos;
@@ -342,7 +358,8 @@ function buildProps(scene, world, apt) {
       const p = prop.body.position;
       AudioSys.splash();
       spawnWaterDecal(p.x, p.z, 0.42);
-      spawnFish(p.x, 0.1, p.z);
+      const spot = findOpenFloorSpot(p.x, p.z);
+      spawnFish(spot.x, 0.1, spot.z);
     }
   });
 
