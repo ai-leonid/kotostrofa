@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>КОТОСТРОФА — кот устраивает хаос</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+window.__errors = [];
+window.addEventListener('error', function (e) {
+  window.__errors.push((e.message || 'err') + ' @ ' + (e.filename || '') + ':' + (e.lineno || 0));
+  var el = document.getElementById('errlog');
+  if (el) el.textContent = window.__errors.join(' | ');
+});
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-top-left">
+    <div class="hud-label">ущерб</div>
+    <div id="hud-score">0 &#8381;</div>
+    <div id="hud-combo" class="hidden">
+      <span id="hud-combo-x">КОМБО &times;1.0</span>
+      <div id="hud-combo-bar-wrap"><div id="hud-combo-bar"></div></div>
+    </div>
+  </div>
+  <div id="hud-timer-wrap">
+    <div id="hud-timer">1:00</div>
+  </div>
+  <div id="hud-quest">
+    <div id="hud-quest-title">&#9873; Операция &laquo;Рыбный день&raquo;</div>
+    <ul id="hud-quest-steps"></ul>
+    <div id="hud-quest-reward">награда: +2 000 &#8381;</div>
+  </div>
+  <div id="hud-feed"></div>
+  <div id="hud-hint">
+    WASD &mdash; бегать &nbsp;&bull;&nbsp; мышь &mdash; камера &nbsp;&bull;&nbsp; Shift &mdash; рывок &nbsp;&bull;&nbsp;
+    Space &mdash; прыжок &nbsp;&bull;&nbsp; ЛКМ / Q &mdash; лапа &nbsp;&bull;&nbsp; E &mdash; мяу
+  </div>
+</div>
+<div id="floaters"></div>
+<div id="banner" class="hidden"></div>
+
+<!-- Стартовый экран -->
+<div id="screen-start" class="screen">
+  <div class="panel">
+    <h1 class="title">КОТОСТРОФА</h1>
+    <p class="subtitle">Кот. Пустая квартира. Одна минута. Максимум хаоса.</p>
+    <button id="btn-play" class="big-btn">УСТРОИТЬ ХАОС</button>
+    <div class="controls-grid">
+      <div><b>WASD</b><span>бегать</span></div>
+      <div><b>мышь</b><span>камера</span></div>
+      <div><b>Shift</b><span>рывок</span></div>
+      <div><b>Space</b><span>прыжок</span></div>
+      <div><b>ЛКМ / Q</b><span>удар лапой</span></div>
+      <div><b>E</b><span>мяукнуть</span></div>
+    </div>
+    <p class="fineprint">Хозяева вернутся через минуту &mdash; они всё узнают.<br>
+    M &mdash; запасная клавиша мяуканья. Всё сделано кодом: без картинок, видео и звуков от нейросетей.</p>
+  </div>
+</div>
+
+<!-- Пауза -->
+<div id="screen-pause" class="screen hidden">
+  <div class="panel">
+    <h2>ПАУЗА</h2>
+    <p class="subtitle">Кот замирает. Хаос подождёт.</p>
+    <button id="btn-resume" class="big-btn">ПРОДОЛЖИТЬ</button>
+  </div>
+</div>
+
+<!-- Финальный экран -->
+<div id="screen-end" class="screen hidden">
+  <div class="panel wide">
+    <h2 id="end-title">ХОЗЯЕВА ВЕРНУЛИСЬ!</h2>
+    <p id="end-subtitle" class="subtitle"></p>
+    <div id="end-columns">
+      <div>
+        <h3>Что они увидели</h3>
+        <ul id="end-report"></ul>
+        <div id="end-counters"></div>
+      </div>
+      <div id="end-right">
+        <h3>Итоговый ущерб</h3>
+        <div id="end-total">0 &#8381;</div>
+        <div id="end-rank"></div>
+        <div id="end-quest"></div>
+      </div>
+    </div>
+    <button id="btn-restart" class="big-btn">НАТВОРИТЬ ЕЩЁ</button>
+  </div>
+</div>
+
+<div id="errlog" data-stats=""></div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/cannon.min.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/props.js"></script>
+<script src="js/cat.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

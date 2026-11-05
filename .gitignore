@@ -1,0 +1,17 @@
+# зависимости (только для тестов, puppeteer-core)
+node_modules/
+
+# артефакты тестовых прогонов
+test/*.png
+npm-debug.log*
+
+# отчёты о проделанной работе (локальные)
+dones/
+
+# мусор ОС и редакторов
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+.vscode/
+.idea/
