@@ -223,6 +223,17 @@ KOTO.game = (function () {
     state.shake = Math.min(1, state.shake + 0.3);
     showBanner(info.name.toUpperCase() + " ПРОЙДЕНА!", "good", 2.2);
     const cp = refs.cat.body.position;
+    // премия Синдиката: весь остаток таймера на момент завершения уровня → рубли
+    const secs = Math.max(0, Math.floor(state.timeLeft));
+    if (secs > 0) {
+      const rate = KOTO.levels.SPEED_BONUS_PER_SEC;
+      const bonus = secs * rate;
+      state.speedBonus += bonus;
+      state.speedLeft = secs;
+      addScore(bonus);
+      floater({ x: cp.x, y: cp.y + 0.7, z: cp.z }, "+" + fmt(bonus) + "₽ ЗА СКОРОСТЬ", "quest");
+      addFeed("Премия Синдиката: +" + fmt(bonus) + " ₽ (" + secs + " с × " + rate + ")");
+    }
     if (nextId) {
       const next = KOTO.levels.info(nextId);
       if (next.timeBonus > 0) {
@@ -234,8 +245,7 @@ KOTO.game = (function () {
       addFeed("Дверь в «" + next.name + "» открыта — иди туда");
     } else {
       addFeed("Вся квартира разгромлена!");
-      state.finishing = true; // таймер замирает: секунды фиксируются под премию
-      state.speedLeft = Math.max(0, Math.floor(state.timeLeft));
+      state.finishing = true; // таймер замирает до победной заставки
       setTimeout(function () { finish(true); }, 1800);
     }
   }
@@ -588,7 +598,7 @@ KOTO.game = (function () {
       "<br>максимальное комбо: " + state.maxCombo + " подряд" +
       "<br>комнат пройдено: " + state.level.done.length + " / " + state.level.order.length +
       (state.speedBonus > 0
-        ? "<br>премия Синдиката за скорость: +" + fmt(state.speedBonus) + " ₽ (" + state.speedLeft + " с × " + KOTO.levels.SPEED_BONUS_PER_SEC + ")"
+        ? "<br>премия Синдиката (все комнаты): +" + fmt(state.speedBonus) + " ₽"
         : "");
     els["end-total"].textContent = fmt(state.score) + " ₽";
     els["end-title"].textContent = win ? "КВАРТИРА РАЗГРОМЛЕНА!" : "ХОЗЯЕВА ВЕРНУЛИСЬ!";
@@ -628,15 +638,7 @@ KOTO.game = (function () {
     if (state.mode !== "play") return;
     state.mode = "over";
     if (document.exitPointerLock) document.exitPointerLock();
-    // премия Синдиката за скорость: неизрасходованные секунды → рубли
-    if (win && state.speedLeft > 0) {
-      const rate = KOTO.levels.SPEED_BONUS_PER_SEC;
-      state.speedBonus = state.speedLeft * rate;
-      addScore(state.speedBonus);
-      const cp = refs.cat.body.position;
-      floater({ x: cp.x, y: cp.y + 0.7, z: cp.z }, "ПРЕМИЯ ЗА СКОРОСТЬ +" + fmt(state.speedBonus) + "₽", "quest");
-      addFeed("Синдикат платит за оперативность: +" + fmt(state.speedBonus) + " ₽ (" + state.speedLeft + " с × " + rate + ")");
-    }
+    // премия за скорость уже выплачена поэтапно в completeLevel
     state.newRecord = KOTO.save.isRecord(state.score);
     KOTO.save.recordRun({
       score: state.score,

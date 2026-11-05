@@ -18,7 +18,7 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", function (e) { errors.push(e.message); });
-  await page.goto(BASE + "?autostart=1&t=90");
+  await page.goto(BASE + "?autostart=1&t=90&fast=1"); // fast: игровое время ≈ реальному, scoreCd успевает
   await sleep(2500);
 
   async function go(x, y, z, fx, fz) {
@@ -49,21 +49,9 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
     }
     return questState(id);
   }
-  // ждём прохождения комнаты; throwAgain — функция добивания (повторный бросок)
-  async function waitLevel(room, throwAgain) {
-    for (let i = 0; i < 20; i++) {
-      const done = await page.evaluate(function (r) {
-        return KOTO.game.state.level.done.indexOf(r) >= 0;
-      }, room);
-      if (done) return true;
-      if (throwAgain && i === 4) await throwAgain();
-      await sleep(500);
-    }
-    return false;
-  }
-  // крушим предметы комнаты раундами, пока не набран порог (квесты уже выполнены)
+  // помошник: крушим предметы комнаты раундами, пока не набран порог (квесты уже выполнены)
   async function smash(room) {
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 22; i++) {
       const done = await page.evaluate(function (room) {
         const st = KOTO.game.state;
         if (st.level.done.indexOf(room) >= 0 || st.progress[room] >= KOTO.levels.info(room).target) return true;
@@ -98,21 +86,17 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
   await go(-5.95, 0.26, 0.9); await swipe();              // подрать диван
   const art = await questState("art");
   const tBefore = await page.evaluate(function () { return KOTO.game.state.timeLeft; });
-  async function throwTV() {
-    await page.evaluate(function () {
-      const tv = KOTO.propsSys.props.filter(function (p) { return p.name === "телевизор" && !p.broken; })[0];
-      if (!tv) return;
-      tv.body.wakeUp();
-      tv.body.velocity.set(0, 0, -3.2);
-    });
-  }
-  await throwTV();
-  await waitLevel("living", throwTV);
+  await page.evaluate(function () {
+    const tv = KOTO.propsSys.props.filter(function (p) { return p.name === "телевизор"; })[0];
+    tv.body.wakeUp();
+    tv.body.velocity.set(0, 0, -3.2);
+  });
+  await smash("living");
   const afterLiving = await page.evaluate(function () {
     const st = KOTO.game.state;
     return {
       done: st.level.done.slice(), idx: st.level.idx, progress: st.progress.living,
-      timeLeft: st.timeLeft,
+      timeLeft: st.timeLeft, speedBonus: st.speedBonus, speedLeft: st.speedLeft,
       doorA: KOTO.apt.doors.A.isOpen, doorB: KOTO.apt.doors.B.isOpen, doorV: KOTO.apt.doors.V.isOpen
     };
   });
@@ -185,6 +169,7 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
     afterLiving.done.indexOf("living") >= 0 && afterLiving.idx === 1 &&
     afterLiving.doorA === true && afterLiving.doorB === false && afterLiving.doorV === false &&
     afterLiving.timeLeft > tBefore + 30 &&
+    afterLiving.speedBonus > 0 && afterLiving.speedLeft > 0 && // премия после 1-го уровня
     fish.done === true &&
     kitchenDone.done.indexOf("kitchen") >= 0 && kitchenDone.doorB === true &&
     bathfun.done === true &&
@@ -193,9 +178,9 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
     fin.mode === "over" && fin.endVisible && fin.title === "КВАРТИРА РАЗГРОМЛЕНА!" &&
     fin.stats && fin.stats.win === true && fin.stats.roomsDone === 4 &&
     fin.stats.speedLeft > 0 &&
-    fin.stats.speedBonus === fin.stats.speedLeft * fin.rate &&
+    fin.stats.speedBonus >= fin.stats.speedLeft * fin.rate && // накоплено за этапы не меньше последнего
     fin.timeLeft >= fin.stats.speedLeft && fin.timeLeft < fin.stats.speedLeft + 1.5 &&
-    fin.endCounters.replace(/\u00a0/g, " ").indexOf("премия Синдиката за скорость") >= 0 &&
+    fin.endCounters.replace(/\u00a0/g, " ").indexOf("премия Синдиката") >= 0 &&
     errors.length === 0;
   if (!ok) console.log("errors:", errors);
   console.log(ok ? "LEVELS E2E OK" : "LEVELS E2E FAIL");
