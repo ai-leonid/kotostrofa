@@ -239,7 +239,7 @@ KOTO.game = (function () {
     const nextId = lv.order[lv.idx];
     AudioSys.fanfare();
     state.shake = Math.min(1, state.shake + 0.3);
-    showBanner(info.name.toUpperCase() + " ПРОЙДЕНА!", "good", 2.2);
+    showBanner("✔ " + info.name.toUpperCase() + " ПРОЙДЕНА!", "good", 2.2);
     const cp = refs.cat.body.position;
     // премия Синдиката: весь остаток таймера на момент завершения уровня → рубли
     const secs = Math.max(0, Math.floor(state.timeLeft));
@@ -260,8 +260,12 @@ KOTO.game = (function () {
       }
       const door = doorTo(nextId);
       if (door) door.open();
+      if (KOTO.minimap && door) {
+        KOTO.minimap.setNavTarget(door, nextId, next.name);
+      }
       addFeed("Дверь в «" + next.name + "» открыта — иди туда");
     } else {
+      if (KOTO.minimap) KOTO.minimap.clearNavTarget();
       addFeed("Вся квартира разгромлена!");
       state.finishing = true; // таймер замирает до победной заставки
       setTimeout(function () { finish(true); }, 1800);
@@ -281,9 +285,10 @@ KOTO.game = (function () {
     const lv = state.level;
     if (lv.order[lv.idx] !== room || lv.entered[room]) return;
     lv.entered[room] = true;
+    if (KOTO.minimap) KOTO.minimap.clearNavTarget(room);
     AudioSys.tinkle();
     const info = KOTO.levels.info(room);
-    showBanner("УРОВЕНЬ " + (lv.idx + 1) + " — " + info.name.toUpperCase(), "", 2.0);
+    showBanner("📍 " + info.name.toUpperCase() + " • УРОВЕНЬ " + (lv.idx + 1), "", 2.0);
     addFeed("Цель: ущерб " + fmt(info.target) + " ₽ в «" + info.name + "»");
     renderQuests();
   }
@@ -771,6 +776,7 @@ KOTO.game = (function () {
   function finish(win) {
     if (state.mode !== "play") return;
     state.mode = "over";
+    if (KOTO.minimap) KOTO.minimap.clearNavTarget();
     if (document.exitPointerLock) document.exitPointerLock();
     // премия за скорость уже выплачена поэтапно в completeLevel
     state.newRecord = KOTO.save.isRecord(state.score);
@@ -808,6 +814,9 @@ KOTO.game = (function () {
       refs = r;
       cacheEls();
       els.floaters = document.getElementById("floaters");
+      if (KOTO.minimap) {
+        KOTO.minimap.init({ scene: refs.scene, apt: refs.apt, cat: refs.cat, game: api });
+      }
       renderQuests();
       updateHUD();
       // рекорд на стартовом экране
@@ -821,6 +830,7 @@ KOTO.game = (function () {
     },
 
     start: function (duration) {
+      if (KOTO.minimap) KOTO.minimap.clearNavTarget();
       state.duration = duration;
       state.timeLeft = duration;
       state.startedAt = Date.now();
@@ -841,7 +851,7 @@ KOTO.game = (function () {
       lastRoomPts = -1;
       renderQuests();
       updateHUD();
-      showBanner("УРОВЕНЬ 1 — ГОСТИНАЯ", "", 2.2);
+      showBanner("📍 ГОСТИНАЯ • УРОВЕНЬ 1", "", 2.2);
       addFeed("Цель: ущерб " + fmt(KOTO.levels.info("living").target) + " ₽ в «Гостиной»");
     },
 
@@ -849,6 +859,7 @@ KOTO.game = (function () {
       if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 2.2);
       if (state.mode !== "play" || state.paused) {
         updateFloaters(dt);
+        if (KOTO.minimap) KOTO.minimap.update(dt);
         return;
       }
       if (!state.finishing) state.timeLeft -= dt;
@@ -867,6 +878,7 @@ KOTO.game = (function () {
       checkLevel();
       updateHUD();
       updateFloaters(dt);
+      if (KOTO.minimap) KOTO.minimap.update(dt);
       if (state.timeLeft <= 0) {
         state.timeLeft = 0;
         updateHUD();

@@ -213,17 +213,87 @@ html, body {
   100% { opacity: 0; margin-top: -70px; }
 }
 
-/* ---------- Баннер (хозяева вернулись) ---------- */
+/* ---------- Баннер / оповещения об уровнях ---------- */
 #banner {
-  position: absolute; top: 34%; left: 50%; transform: translate(-50%,-50%);
+  position: absolute; top: 155px; left: 50%; transform: translate(-50%,-50%);
   z-index: 20; pointer-events: none;
-  font-size: 54px; font-weight: 900; letter-spacing: 2px;
-  color: #ff5a4d; text-shadow: 0 4px 24px rgba(0,0,0,.9);
-  animation: bannerIn .5s ease-out;
+  font-size: 19px; font-weight: 800; letter-spacing: 1.5px;
+  color: #ffd66b;
+  background: rgba(12, 16, 28, 0.86);
+  border: 1px solid rgba(255, 214, 107, 0.45);
+  border-radius: 28px;
+  padding: 8px 24px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7), 0 0 16px rgba(255, 214, 107, 0.2);
+  backdrop-filter: blur(8px);
   white-space: nowrap;
+  animation: bannerPop .35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
-#banner.good { color: #9fe08a; text-shadow: 0 4px 24px rgba(40,120,40,.55), 0 4px 24px rgba(0,0,0,.9); }
-@keyframes bannerIn { from { transform: translate(-50%,-50%) scale(3); opacity: 0; } }
+#banner.good {
+  color: #9fe08a;
+  border-color: rgba(159, 224, 138, 0.6);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7), 0 0 20px rgba(159, 224, 138, 0.35);
+}
+@keyframes bannerPop {
+  from { transform: translate(-50%, -65%) scale(0.8); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* ---------- Миникарта ---------- */
+#hud-minimap {
+  position: absolute; top: 110px; left: 22px;
+  background: rgba(10, 14, 24, 0.82);
+  border: 1px solid rgba(255, 214, 107, 0.35);
+  border-radius: 10px;
+  padding: 6px 8px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 12;
+  transition: all .2s ease;
+}
+#minimap-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px; padding: 0 2px;
+  font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
+  color: #ffd66b;
+}
+.mmap-dot {
+  color: #ff9d4d; margin-right: 4px; animation: mmapBlink 1.2s infinite;
+}
+@keyframes mmapBlink {
+  50% { opacity: 0.3; }
+}
+#minimap-canvas {
+  display: block;
+  border-radius: 6px;
+  background: #090c14;
+}
+#minimap-nav {
+  margin-top: 5px;
+  padding: 4px 8px;
+  background: rgba(40, 160, 80, 0.28);
+  border: 1px solid rgba(159, 224, 138, 0.6);
+  border-radius: 6px;
+  font-size: 11px; font-weight: 800;
+  color: #9fe08a;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  animation: navGlow 1.2s infinite alternate;
+}
+@keyframes navGlow {
+  from { box-shadow: 0 0 4px rgba(159, 224, 138, 0.3); }
+  to { box-shadow: 0 0 14px rgba(159, 224, 138, 0.85); }
+}
+.nav-pulse-icon {
+  font-size: 13px; animation: navArrowBounce .6s infinite alternate;
+}
+@keyframes navArrowBounce {
+  from { transform: translateX(0); }
+  to { transform: translateX(3px); }
+}
+#minimap-nav-dist {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
 
 /* ---------- Экраны ---------- */
 .screen {
@@ -463,6 +533,22 @@ h2 {
   #end-columns { flex-direction: column; gap: 18px; }
   #end-report { min-width: 0; }
   #end-total { font-size: 32px; }
-  #banner { font-size: clamp(26px, 8vw, 54px); white-space: normal; text-align: center; width: 92vw; }
+  #banner {
+    top: 98px;
+    font-size: clamp(14px, 3.8vw, 17px);
+    padding: 6px 16px;
+    letter-spacing: 1px;
+    border-radius: 20px;
+    white-space: normal;
+    text-align: center;
+    max-width: 86vw;
+    width: auto;
+  }
+  #hud-minimap {
+    top: 92px;
+    left: 10px;
+    transform-origin: top left;
+    transform: scale(0.82);
+  }
   .record-line { font-size: 12px; margin: -8px 0 14px; }
 }

@@ -35,6 +35,18 @@ window.addEventListener('error', function (e) {
     <div id="hud-room-pts">0 / 22 000 &#8381;</div>
     <div id="hud-room-bar-wrap"><div id="hud-room-bar"></div></div>
   </div>
+  <div id="hud-minimap">
+    <div id="minimap-header">
+      <span class="mmap-dot">&#9679;</span>
+      <span id="minimap-room-title">ГОСТИНАЯ</span>
+    </div>
+    <canvas id="minimap-canvas" width="190" height="95"></canvas>
+    <div id="minimap-nav" class="hidden">
+      <span class="nav-pulse-icon">&#10140;</span>
+      <span id="minimap-nav-text">ИДИ НА КУХНЮ</span>
+      <span id="minimap-nav-dist">5.4 м</span>
+    </div>
+  </div>
   <div id="hud-quests"></div>
   <div id="hud-feed"></div>
   <div id="hud-hint">
@@ -124,6 +136,7 @@ window.addEventListener('error', function (e) {
 <script src="js/world.js"></script>
 <script src="js/props.js"></script>
 <script src="js/cat.js"></script>
+<script src="js/minimap.js"></script>
 <script src="js/game.js"></script>
 <script src="js/main.js"></script>
 </body>
