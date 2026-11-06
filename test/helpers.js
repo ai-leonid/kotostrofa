@@ -7,7 +7,7 @@ const fs = require("fs");
 const execFileSync = require("child_process").execFileSync;
 
 const indexPath = path.resolve(__dirname, "..", "index.html");
-const BASE = "file://" + indexPath.split(path.sep).join("/");
+const BASE = process.env.TEST_BASE || "http://localhost:5173";
 
 function firstExisting(list) {
   for (let i = 0; i < list.length; i++) {

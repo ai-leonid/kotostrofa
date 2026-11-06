@@ -20,11 +20,16 @@ window.addEventListener('error', function (e) {
 <!-- HUD -->
 <div id="hud" class="hidden">
   <div id="hud-top-left">
-    <div class="hud-label">ущерб</div>
-    <div id="hud-score">0 &#8381;</div>
-    <div id="hud-combo" class="hidden">
-      <span id="hud-combo-x">КОМБО &times;1.0</span>
-      <div id="hud-combo-bar-wrap"><div id="hud-combo-bar"></div></div>
+    <div id="hud-cat-portrait-wrap">
+      <canvas id="hud-cat-portrait" width="64" height="64"></canvas>
+    </div>
+    <div id="hud-score-col">
+      <div class="hud-label">ущерб</div>
+      <div id="hud-score">0 &#8381;</div>
+      <div id="hud-combo" class="hidden">
+        <span id="hud-combo-x">КОМБО &times;1.0</span>
+        <div id="hud-combo-bar-wrap"><div id="hud-combo-bar"></div></div>
+      </div>
     </div>
   </div>
   <div id="hud-timer-wrap">
@@ -34,6 +39,10 @@ window.addEventListener('error', function (e) {
     <div id="hud-room-name">Гостиная</div>
     <div id="hud-room-pts">0 / 22 000 &#8381;</div>
     <div id="hud-room-bar-wrap"><div id="hud-room-bar"></div></div>
+    <div id="hud-daily-special" class="hidden">
+      <span class="daily-star">⭐</span>
+      <span id="daily-special-text">ЦЕЛЬ ДНЯ: ...</span>
+    </div>
   </div>
   <div id="hud-minimap">
     <div id="minimap-header">
@@ -49,14 +58,16 @@ window.addEventListener('error', function (e) {
   </div>
   <div id="hud-quests"></div>
   <div id="hud-feed"></div>
+  <div id="hud-lasso" class="hidden">🎯 ЛАССО ЗАХВАТ: ОТПУСТИ Q ДЛЯ БРОСКА</div>
   <div id="hud-hint">
     WASD &mdash; бегать &nbsp;&bull;&nbsp; мышь &mdash; камера &nbsp;&bull;&nbsp; Shift &mdash; рывок &nbsp;&bull;&nbsp;
-    Space &mdash; прыжок &nbsp;&bull;&nbsp; ЛКМ / Q &mdash; лапа &nbsp;&bull;&nbsp; E &mdash; мяу
+    Space &mdash; прыжок &nbsp;&bull;&nbsp; ЛКМ / Q &mdash; лапа (удержание &mdash; лассо) &nbsp;&bull;&nbsp; E &mdash; мяу
   </div>
 </div>
 <div id="floaters"></div>
 <div id="banner" class="hidden"></div>
 <div id="speed-lines" class="hidden"></div>
+<div id="ultra-chaos-overlay" class="hidden"></div>
 
 <!-- Стартовый экран -->
 <div id="screen-start" class="screen">
@@ -107,6 +118,7 @@ window.addEventListener('error', function (e) {
         <div id="end-record"></div>
         <div id="end-rank"></div>
         <div id="end-quest"></div>
+        <div id="end-meta-badges"></div>
       </div>
     </div>
     <button id="btn-restart" class="big-btn">НАТВОРИТЬ ЕЩЁ</button>
@@ -128,16 +140,6 @@ window.addEventListener('error', function (e) {
   </div>
 </div>
 
-<script src="vendor/three.min.js"></script>
-<script src="vendor/cannon.min.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/levels.js"></script>
-<script src="js/save.js"></script>
-<script src="js/world.js"></script>
-<script src="js/props.js"></script>
-<script src="js/cat.js"></script>
-<script src="js/minimap.js"></script>
-<script src="js/game.js"></script>
-<script src="js/main.js"></script>
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

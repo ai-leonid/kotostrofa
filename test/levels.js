@@ -64,7 +64,7 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
     mug.body.wakeUp();
     mug.body.velocity.set(0, 0, -3.5);
   });
-  await sleep(1200);
+  await sleep(1600);
   const afterKitchen = await page.evaluate(function () {
     const st = KOTO.game.state;
     return { score: st.score, kitchen: st.progress.kitchen, living: st.progress.living, broken: st.broken };

@@ -1,17 +1,40 @@
-# зависимости (только для тестов, puppeteer-core)
+# Зависимости
 node_modules/
+/.pnp
+.pnp.js
 
-# артефакты тестовых прогонов
-test/*.png
+# Сборка и бандлы (Vite / TypeScript)
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+
+# Логи и отладка
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
 
-# отчёты о проделанной работе (локальные)
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# Артефакты тестовых прогонов и скриншоты
+test/*.png
+test/*.jpg
+coverage/
+
+# Отчёты о проделанной работе (локальные)
 dones/
 
-# мусор ОС и редакторов
+# Мусор ОС и редакторов
+.DS_Store
 Thumbs.db
 Desktop.ini
-.DS_Store
-*.log
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace

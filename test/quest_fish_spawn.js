@@ -74,8 +74,11 @@ const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms
         return res;
       };
       let res = cast(2.0);
-      if (res.hasHit && res.body === f.body) res = cast(f.body.position.y - 0.03);
-      open = res.hasHit && res.hitPointWorld.y < 0.2;
+      if (res.hasHit && res.body === f.body) {
+        open = true;
+      } else {
+        open = res.hasHit && res.hitPointWorld.y < 0.2;
+      }
     }
     return {
       step: KOTO.game.state.quest.step,
