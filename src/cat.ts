@@ -285,7 +285,11 @@ export function createCat(
         wx = c * dx - s * dz
         wz = -s * dx - c * dz
       }
-      const speed = isDrifting ? (input.run ? 5.8 : 3.4) : input.run ? 5.2 : 2.9
+      let speedMult = 1.0
+      if (typeof window !== 'undefined' && (window as any).KOTO && (window as any).KOTO.game && (window as any).KOTO.game.state) {
+        if ((window as any).KOTO.game.state.zoomiesT > 0) speedMult = 1.4
+      }
+      const speed = (isDrifting ? (input.run ? 5.8 : 3.4) : input.run ? 5.2 : 2.9) * speedMult
       const accel = isDrifting ? 3.2 : this.grounded ? 11 : 3.5
       const k = Math.min(1, accel * dt)
       v.x += (wx * speed - v.x) * k

@@ -50,11 +50,15 @@ export function buildProps(scene: any, world: any, apt: any) {
       onBreak: opts.onBreak || null, onScore: opts.onScore || null,
       hang: !!opts.hang, released: false,
       room: levels.roomOf(x, z),
-      initialPosition: new CANNON.Vec3(x, y, z)
+      initialPosition: new CANNON.Vec3(x, y, z),
+      keepMeshOnBreak: !!opts.keepMeshOnBreak
     };
     body.addEventListener("collide", function (e: any) {
       if (!e.contact || prop.broken) return;
       const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      if (prop.name === "телевизор" && v > 0.5 && typeof tvCartoon !== "undefined") {
+        tvCartoon.glitch(0.35);
+      }
       const other = e.body;
       const catBody = typeof window !== 'undefined' && window.KOTO && window.KOTO.cat ? window.KOTO.cat.body : null;
       const isStrike = !!(other && other !== catBody && other.material === M.prop);
@@ -375,17 +379,559 @@ export function buildProps(scene: any, world: any, apt: any) {
     fish.alive = true;
   }
 
+  // ---------- ПРОЦЕДУРНЫЙ МУЛЬТФИЛЬМ НА ТЕЛЕВИЗОРЕ ----------
+  function createTvCartoon() {
+    if (typeof document === 'undefined') {
+      return {
+        texture: new THREE.Texture(),
+        update: () => {},
+        glitch: () => {},
+        break: () => {},
+        reset: () => {}
+      };
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d')!;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    let time = 0;
+    let channel = 0;
+    let channelTimer = 0;
+    let glitchTimer = 0;
+    let broken = false;
+    let frameAccum = 0;
+
+    function drawCatAndMouse(t: number) {
+      const w = 320, h = 180;
+      // 1. Небо
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.7);
+      skyGrad.addColorStop(0, '#38a3ff');
+      skyGrad.addColorStop(1, '#a6e3e9');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // 2. Солнце
+      const sunX = w - 40, sunY = 32, sunR = 15;
+      ctx.save();
+      ctx.translate(sunX, sunY);
+      ctx.rotate(t * 0.6);
+      ctx.fillStyle = '#ffcc00';
+      for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-2, -sunR - 7, 4, 7);
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, sunR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#cc8800';
+      ctx.beginPath();
+      ctx.arc(-5, -2, 1.8, 0, Math.PI * 2);
+      ctx.arc(5, -2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 3, 5, 0, Math.PI);
+      ctx.stroke();
+      ctx.restore();
+
+      // 3. Облака
+      function drawCloud(cx: number, cy: number, sc: number) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 * sc, 0, Math.PI * 2);
+        ctx.arc(cx + 12 * sc, cy - 4 * sc, 10 * sc, 0, Math.PI * 2);
+        ctx.arc(cx - 12 * sc, cy - 2 * sc, 9 * sc, 0, Math.PI * 2);
+        ctx.arc(cx + 22 * sc, cy + 2 * sc, 10 * sc, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      drawCloud(((t * 14) % (w + 80)) - 40, 32, 1.0);
+      drawCloud(((t * 8 + 170) % (w + 80)) - 40, 48, 0.7);
+
+      // 4. Зеленые холмы
+      ctx.fillStyle = '#5fb85b';
+      ctx.beginPath();
+      ctx.arc(w * 0.75, h + 30, 130, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#43a047';
+      ctx.beginPath();
+      ctx.arc(w * 0.35, h + 80, 180, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Цветочки
+      for (let f = 0; f < 6; f++) {
+        const fx = (f * 55 + 20) % w;
+        const fy = h - 16 + Math.sin(f * 2.1) * 6;
+        ctx.fillStyle = f % 2 === 0 ? '#ffeb3b' : '#ff4081';
+        ctx.beginPath();
+        ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(fx, fy, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Мышонок с сыром
+      const loopW = w + 140;
+      const mouseX = ((t * 88) % loopW) - 30;
+      const hopM = Math.abs(Math.sin(t * 14)) * 8;
+      const mouseY = h - 28 - hopM;
+
+      ctx.save();
+      ctx.translate(mouseX, mouseY);
+      ctx.strokeStyle = '#f48fb1';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10, 0);
+      ctx.quadraticCurveTo(-18, -10 + Math.sin(t * 14) * 6, -24, -2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#9e9e9e';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 12, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#757575';
+      ctx.beginPath();
+      ctx.arc(-4, -8, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f48fb1';
+      ctx.beginPath();
+      ctx.arc(-4, -8, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#111111';
+      ctx.beginPath();
+      ctx.arc(6, -2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff80ab';
+      ctx.beginPath();
+      ctx.arc(11, 0, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Сыр
+      ctx.fillStyle = '#ffd54f';
+      ctx.beginPath();
+      ctx.moveTo(7, -10);
+      ctx.lineTo(19, -2);
+      ctx.lineTo(7, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffb300';
+      ctx.beginPath();
+      ctx.arc(11, -4, 2, 0, Math.PI * 2);
+      ctx.arc(13, 2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f48fb1';
+      ctx.fillRect(-4 + Math.sin(t * 14) * 4, 7, 3, 4);
+      ctx.fillRect(4 - Math.sin(t * 14) * 4, 7, 3, 4);
+      ctx.restore();
+
+      // 6. Рыжий кот (погоня)
+      const catX = mouseX - 68;
+      const hopC = Math.abs(Math.sin(t * 14 - 0.5)) * 10;
+      const catY = h - 30 - hopC;
+
+      ctx.save();
+      ctx.translate(catX, catY);
+      ctx.strokeStyle = '#e65100';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-16, 4);
+      ctx.quadraticCurveTo(-26, -14 + Math.sin(t * 10) * 8, -20, -22);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f57c00';
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 18, 12, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(14, -6, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#e65100';
+      ctx.beginPath();
+      ctx.moveTo(8, -15); ctx.lineTo(13, -24); ctx.lineTo(17, -15); ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(17, -15); ctx.lineTo(22, -23); ctx.lineTo(25, -13); ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(18, -8, 4.5, 0, Math.PI * 2);
+      ctx.arc(12, -8, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2e7d32';
+      ctx.beginPath();
+      ctx.arc(19, -8, 2.5, 0, Math.PI * 2);
+      ctx.arc(13, -8, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(20, -8, 1.2, 0, Math.PI * 2);
+      ctx.arc(14, -8, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#e91e63';
+      ctx.beginPath();
+      ctx.arc(21, -3, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(22, -4); ctx.lineTo(31, -7);
+      ctx.moveTo(22, -2); ctx.lineTo(32, -1);
+      ctx.moveTo(22, 0);  ctx.lineTo(30, 5);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f57c00';
+      ctx.beginPath();
+      ctx.ellipse(22 + Math.sin(t * 14) * 4, 6, 8, 3.5, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(-8 + Math.cos(t * 14) * 5, 12, 7, 4, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Плашка канала
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 92, 20, 4);
+      ctx.fill();
+      ctx.font = 'bold 10px monospace, sans-serif';
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillText('🐱 МУЛЬТ-ТВ', 14, 22);
+
+      if (Math.floor(t * 2) % 2 === 0) {
+        ctx.fillStyle = '#ff1744';
+        ctx.beginPath();
+        ctx.arc(w - 18, 16, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawAquarium(t: number) {
+      const w = 320, h = 180;
+      const seaGrad = ctx.createLinearGradient(0, 0, 0, h);
+      seaGrad.addColorStop(0, '#0277bd');
+      seaGrad.addColorStop(0.6, '#01579b');
+      seaGrad.addColorStop(1, '#002f6c');
+      ctx.fillStyle = seaGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Лучи света
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      for (let i = 0; i < 4; i++) {
+        const rx = 40 + i * 70 + Math.sin(t * 1.5 + i) * 12;
+        ctx.beginPath();
+        ctx.moveTo(rx - 10, 0); ctx.lineTo(rx + 25, 0);
+        ctx.lineTo(rx + 45, h); ctx.lineTo(rx - 25, h);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Водоросли
+      ctx.strokeStyle = '#2e7d32';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const bx = 20 + k * 45;
+        ctx.beginPath();
+        ctx.moveTo(bx, h);
+        const sway = Math.sin(t * 2.5 + k * 1.2) * 16;
+        ctx.bezierCurveTo(bx + sway * 0.5, h - 30, bx - sway * 0.5, h - 60, bx + sway, h - 90);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#c5a059';
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h + 20, w * 0.6, 40, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Пузырьки
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 1;
+      for (let b = 0; b < 10; b++) {
+        const by = (h + 20 - ((t * 35 + b * 28) % (h + 30)));
+        const bx = 30 + b * 29 + Math.sin(t * 3 + b) * 8;
+        const br = 2 + (b % 3) * 1.5;
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      function drawFish(fx: number, fy: number, sc: number, dir: number, bodyCol: string, stripe: boolean) {
+        ctx.save();
+        ctx.translate(fx, fy);
+        ctx.scale(dir * sc, sc);
+        ctx.fillStyle = bodyCol;
+        const tailAngle = Math.sin(t * 12) * 0.3;
+        ctx.save();
+        ctx.translate(-14, 0);
+        ctx.rotate(tailAngle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(-12, -9); ctx.lineTo(-8, 0); ctx.lineTo(-12, 9); ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (stripe) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(-2, 0, 3.5, 9.5, 0, 0, Math.PI * 2);
+          ctx.ellipse(6, 0, 2.5, 7.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(9, -3, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(10, -3, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      const f1x = ((t * 40) % (w + 60)) - 30;
+      const f1y = 65 + Math.sin(t * 2) * 12;
+      drawFish(f1x, f1y, 1.1, 1, '#ff6d00', true);
+
+      const f2x = w + 30 - ((t * 50 + 100) % (w + 60));
+      const f2y = 110 + Math.cos(t * 2.3) * 14;
+      drawFish(f2x, f2y, 1.0, -1, '#2979ff', false);
+
+      const f3x = ((t * 60 + 180) % (w + 60)) - 30;
+      const f3y = 40 + Math.sin(t * 3.5) * 8;
+      drawFish(f3x, f3y, 0.75, 1, '#ffd600', true);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 92, 20, 4);
+      ctx.fill();
+      ctx.font = 'bold 10px monospace, sans-serif';
+      ctx.fillStyle = '#80d8ff';
+      ctx.fillText('🐟 РЫБ-ТВ', 16, 22);
+    }
+
+    function drawBirdWatch(t: number) {
+      const w = 320, h = 180;
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#ff9e80');
+      bgGrad.addColorStop(0.5, '#ffd180');
+      bgGrad.addColorStop(1, '#a7ffeb');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.7);
+      ctx.quadraticCurveTo(w * 0.35, h * 0.65, w * 0.65, h * 0.58);
+      ctx.stroke();
+
+      ctx.fillStyle = '#66bb6a';
+      for (let l = 0; l < 5; l++) {
+        const lx = 30 + l * 35;
+        const ly = h * 0.68 - l * 5;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly - 8, 10, 5, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const birdX = w * 0.45;
+      const hopB = Math.floor(t * 3) % 4 === 0 ? 6 : 0;
+      const birdY = h * 0.58 - 14 - hopB;
+
+      ctx.save();
+      ctx.translate(birdX, birdY);
+      ctx.fillStyle = '#1e88e5';
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fdd835';
+      ctx.beginPath();
+      ctx.arc(4, 4, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0d47a1';
+      ctx.beginPath();
+      ctx.ellipse(-3, 1, 7, 5, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1e88e5';
+      ctx.beginPath();
+      ctx.arc(8, -8, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(10, -9, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(11, -9, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff8f00';
+      ctx.beginPath();
+      ctx.moveTo(15, -10); ctx.lineTo(22, -8); ctx.lineTo(15, -6); ctx.closePath();
+      ctx.fill();
+      if (Math.sin(t * 4) > 0) {
+        ctx.fillStyle = '#d81b60';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('♪', 18 + Math.sin(t * 6) * 4, -16 - ((t * 12) % 15));
+      }
+      ctx.restore();
+
+      const mX = w * 0.75 + Math.sin(t * 5) * 25;
+      const mY = h * 0.35 + Math.cos(t * 4) * 20;
+      ctx.fillStyle = '#e040fb';
+      ctx.beginPath();
+      const flap = Math.abs(Math.sin(t * 20)) * 6;
+      ctx.ellipse(mX - 4, mY, 5, flap, 0.3, 0, Math.PI * 2);
+      ctx.ellipse(mX + 4, mY, 5, flap, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#212121';
+      ctx.fillRect(mX - 1, mY - 3, 2, 6);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 96, 20, 4);
+      ctx.fill();
+      ctx.font = 'bold 10px monospace, sans-serif';
+      ctx.fillStyle = '#ffd180';
+      ctx.fillText('🐦 ПТИЦЕ-ТВ', 14, 22);
+    }
+
+    function drawGlitch() {
+      const w = 320, h = 180;
+      for (let i = 0; i < 10; i++) {
+        const gy = Math.random() * h;
+        const gh = 2 + Math.random() * 8;
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, gy, w, gh);
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0, 255, 255, 0.4)' : 'rgba(255, 0, 128, 0.4)';
+        ctx.fillRect((Math.random() - 0.5) * 30, gy, w, gh * 0.5);
+      }
+    }
+
+    function drawBroken() {
+      const w = 320, h = 180;
+      ctx.fillStyle = '#0a0a0e';
+      ctx.fillRect(0, 0, w, h);
+      for (let s = 0; s < 4; s++) {
+        const sy = Math.random() * h;
+        ctx.fillStyle = 'rgba(180, 200, 255, 0.25)';
+        ctx.fillRect(0, sy, w, 2);
+      }
+      const hitX = w * 0.55;
+      const hitY = h * 0.45;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 1.8;
+      const rays = [0, 0.6, 1.2, 1.9, 2.7, 3.4, 4.1, 4.8, 5.5];
+      for (const r of rays) {
+        ctx.beginPath();
+        ctx.moveTo(hitX, hitY);
+        let rx = hitX, ry = hitY;
+        const len = 35 + Math.random() * 55;
+        for (let step = 0; step < 4; step++) {
+          rx += Math.cos(r + (Math.random() - 0.5) * 0.5) * (len / 4);
+          ry += Math.sin(r + (Math.random() - 0.5) * 0.5) * (len / 4);
+          ctx.lineTo(rx, ry);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.beginPath();
+      ctx.arc(hitX, hitY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff3d00';
+      ctx.font = 'bold 12px monospace, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('НЕТ СИГНАЛА', w / 2, h - 20);
+      ctx.textAlign = 'start';
+    }
+
+    function render() {
+      if (broken) {
+        drawBroken();
+        return;
+      }
+      if (channel === 0) drawCatAndMouse(time);
+      else if (channel === 1) drawAquarium(time);
+      else drawBirdWatch(time);
+
+      if (glitchTimer > 0) {
+        drawGlitch();
+      }
+    }
+
+    function update(dt: number) {
+      time += dt;
+      if (glitchTimer > 0) glitchTimer -= dt;
+      if (!broken) {
+        channelTimer += dt;
+        if (channelTimer > 12) {
+          channelTimer = 0;
+          channel = (channel + 1) % 3;
+          glitchTimer = 0.2;
+        }
+      }
+      frameAccum += dt;
+      if (frameAccum >= 0.04) {
+        frameAccum = 0;
+        render();
+        texture.needsUpdate = true;
+      }
+    }
+
+    // Первоначальный кадр
+    render();
+    texture.needsUpdate = true;
+
+    return {
+      canvas,
+      texture,
+      update,
+      glitch: (dur: number) => { glitchTimer = dur; },
+      break: () => { broken = true; render(); texture.needsUpdate = true; },
+      reset: () => { broken = false; channel = 0; channelTimer = 0; glitchTimer = 0; render(); texture.needsUpdate = true; }
+    };
+  }
+
   // ---------- ГОСТИНАЯ ----------
+  const tvCartoon = createTvCartoon();
   const tvG = new THREE.Group();
   const tvFrame = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 1.24), std("#1a1a1e", 0.4));
   tvG.add(tvFrame);
-  const tvScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), new THREE.MeshStandardMaterial({ color: "#0c1420", emissive: "#9fd8ff", emissiveIntensity: 0.55, roughness: 0.2 }));
+  const tvScreenMat = new THREE.MeshStandardMaterial({
+    map: tvCartoon.texture,
+    emissive: 0xffffff,
+    emissiveMap: tvCartoon.texture,
+    emissiveIntensity: 0.7,
+    roughness: 0.2
+  });
+  const tvScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), tvScreenMat);
   tvScreen.rotation.y = -Math.PI / 2;
   tvScreen.position.x = -0.047;
   tvG.add(tvScreen);
-  register("телевизор", 5000, tvG, boxShape(0.045, 0.36, 0.62), -2.0, L.tvStandTopY + 0.36, 0.9, {
+  const tvProp = register("телевизор", 5000, tvG, boxShape(0.045, 0.36, 0.62), -2.0, L.tvStandTopY + 0.36, 0.9, {
     mass: 9, breakable: true, breakVel: 1.9, shardColor: "#2a2d33",
-    onBreak: function () { if (AudioSys.ctx) AudioSys.zap(); }
+    keepMeshOnBreak: true,
+    onBreak: function () {
+      tvCartoon.break();
+      tvScreenMat.emissiveIntensity = 0.15;
+      if (AudioSys.ctx) AudioSys.zap();
+    }
   });
 
   const cushColors = ["#c9803c", "#8a9a5e", "#b0524a"];
@@ -421,20 +967,27 @@ export function buildProps(scene: any, world: any, apt: any) {
   register("цветок", 550, plantG, cylShapeY(0.09, 0.16), -3.8, L.bookshelf.boardsY[2] + 0.08, -4.2, { mass: 0.5, breakable: true, breakVel: 2.2, shardColor: "#b0684a" });
 
   const lampG = new THREE.Group();
-  const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.04, 14), std("#4a4a52", 0.5, 0.4));
-  lampBase.position.y = 0.02;
+  const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.04, 16), std("#3d3d44", 0.5, 0.4));
+  lampBase.position.y = -0.80;
   lampG.add(lampBase);
-  const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.45, 8), std("#4a4a52", 0.5, 0.4));
-  lampPole.position.y = 0.75;
+  const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.40, 10), std("#3d3d44", 0.5, 0.4));
+  lampPole.position.y = -0.08;
   lampG.add(lampPole);
-  const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.23, 0.3, 14, 1, true), new THREE.MeshStandardMaterial({ color: "#f5e2b8", emissive: "#ffdf94", emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.9 }));
-  lampShade.position.y = 1.58;
+  const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.24, 0.32, 16, 1, true), new THREE.MeshStandardMaterial({ color: "#f5e2b8", emissive: "#ffdf94", emissiveIntensity: 0.45, side: THREE.DoubleSide, roughness: 0.85 }));
+  lampShade.position.y = 0.72;
   lampG.add(lampShade);
-  const lampLight = new THREE.PointLight("#ffdf94", 0.55, 7, 1.8);
-  lampLight.position.set(-6.5, 1.72, -3.75);
-  scene.add(lampLight);
-  register("торшер", 800, lampG, boxShape(0.13, 0.82, 0.13), -6.5, 0.84, -3.9, {
-    mass: 1.0,
+  const lampBulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), new THREE.MeshStandardMaterial({ color: "#fff7db", emissive: "#ffd875", emissiveIntensity: 1.0 }));
+  lampBulb.position.y = 0.70;
+  lampG.add(lampBulb);
+  const lampLight = new THREE.PointLight("#ffdf94", 0.65, 7, 1.6);
+  lampLight.position.set(0, 0.70, 0);
+  lampG.add(lampLight);
+  const floorLampProp = register("торшер", 800, lampG, boxShape(0.16, 0.82, 0.16), -6.5, 0.82, -3.9, {
+    mass: 1.2,
+    breakable: true,
+    breakVel: 2.0,
+    shardColor: "#f5e2b8",
+    keepMeshOnBreak: true,
     onBreak: function () { lampLight.intensity = 0; }
   });
 
@@ -1054,18 +1607,21 @@ export function buildProps(scene: any, world: any, apt: any) {
   register("будильник", 400, clockG2, cylShapeY(0.055, 0.05), 8.78, L.nightstandTopY + 0.03, -4.2, { mass: 0.3, breakable: true, breakVel: 1.8, shardColor: "#c94a4a" });
   // прикроватная лампа (квест)
   const bedLampG = new THREE.Group();
-  bedLampG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.025, 12), std("#4a4a52", 0.5, 0.4)));
+  const bedLampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.025, 12), std("#4a4a52", 0.5, 0.4));
+  bedLampBase.position.y = -0.1475;
+  bedLampG.add(bedLampBase);
   const bedLampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8), std("#4a4a52", 0.5, 0.4));
-  bedLampPole.position.y = 0.11;
+  bedLampPole.position.y = -0.035;
   bedLampG.add(bedLampPole);
   const bedLampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.12, 12, 1, true), new THREE.MeshStandardMaterial({ color: "#f5e2b8", emissive: "#ffdf94", emissiveIntensity: 0.4, side: THREE.DoubleSide, roughness: 0.9 }));
-  bedLampShade.position.y = 0.27;
+  bedLampShade.position.y = 0.10;
   bedLampG.add(bedLampShade);
-  const bedLampLight = new THREE.PointLight("#ffdf94", 0.4, 5, 1.8);
-  bedLampLight.position.set(9.02, 0.95, -4.08);
-  scene.add(bedLampLight);
-  register("лампу", 900, bedLampG, boxShape(0.07, 0.16, 0.07), 9.02, L.nightstandTopY + 0.16, -4.08, {
+  const bedLampLight = new THREE.PointLight("#ffdf94", 0.45, 5, 1.8);
+  bedLampLight.position.set(0, 0.10, 0);
+  bedLampG.add(bedLampLight);
+  const bedLampProp = register("лампу", 900, bedLampG, boxShape(0.07, 0.16, 0.07), 9.02, L.nightstandTopY + 0.16, -4.08, {
     mass: 0.4, breakable: true, breakVel: 1.4, shardColor: "#f5e2b8",
+    keepMeshOnBreak: true,
     onBreak: function () { bedLampLight.intensity = 0; }
   });
   // комод: книги, духи, кружка
@@ -1213,6 +1769,7 @@ export function buildProps(scene: any, world: any, apt: any) {
     spinAngle: 0,
     smokeTimer: 0,
     sparkTimer: 0,
+    stunTimer: 0,
     pos: vacBody.position,
     room: "living",
 
@@ -1278,14 +1835,43 @@ export function buildProps(scene: any, world: any, apt: any) {
           KOTO.game.state.metaQuests.vacuumSlayer = true;
         }
       }
+    },
+
+    reset: function () {
+      this.broken = false;
+      this.hp = this.maxHp;
+      this.updateHp();
+      this.hpG.visible = true;
+      this.brokenBadge.visible = false;
+      this.led.material.color.set("#00ff66");
+      this.light.color.set("#00ff66");
+      this.light.intensity = 0.9;
+      this.lid.rotation.set(0, 0, 0);
+      this.lid.position.set(0, 0.046, 0.03);
+      vacWires.visible = false;
+      this.pos.set(vacSpawn.x, vacSpawn.y, vacSpawn.z);
+      this.mesh.position.set(vacSpawn.x, vacSpawn.y, vacSpawn.z);
+      this.mesh.rotation.set(0, 0, 0);
+      this.yaw = 0;
+      this.targetYaw = 0;
+      this.turnTimer = 2.5;
+      this.spinAngle = 0;
+      this.smokeTimer = 0;
+      this.sparkTimer = 0;
+      this.stunTimer = 0;
+      this.scareCd = 0;
+      this.body.velocity.set(0, 0, 0);
+      this.body.angularVelocity.set(0, 0, 0);
     }
   };
 
   vacBody.addEventListener("collide", function (e) {
     if (!e.contact || vacuum.broken) return;
-    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+    if (typeof window !== 'undefined' && window.KOTO && window.KOTO.game && window.KOTO.game.state && window.KOTO.game.state.mode !== 'play') return;
     const other = e.body;
-    if (other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop && v > 1.1) {
+    if (!other || other === vacBody) return;
+    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+    if (other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop && v > 1.1) {
       const mass = other.mass || 0.5;
       const isLasso = (other as any)._isLassoThrown;
       const dmg = isLasso ? Math.max(50, Math.round(v * 22 * Math.min(2.5, mass))) : Math.min(100, Math.max(25, Math.round(v * 22 * Math.min(2.5, mass))));
@@ -1336,6 +1922,7 @@ export function buildProps(scene: any, world: any, apt: any) {
   }
 
   function update(dt) {
+    if (typeof tvCartoon !== "undefined") tvCartoon.update(dt);
     for (let i = transients.length - 1; i >= 0; i--) {
       const tr = transients[i];
       tr.t += dt;
@@ -1367,6 +1954,12 @@ export function buildProps(scene: any, world: any, apt: any) {
     }
     // Обновление Жорки-3000
     if (!vacuum.broken) {
+      if (vacuum.stunTimer > 0) {
+        vacuum.stunTimer -= dt;
+        vacuum.mesh.position.copy(vacuum.pos);
+        vacuum.mesh.rotation.y = vacuum.yaw + Math.sin(performance.now() * 0.015) * 0.1;
+        return;
+      }
       vacuum.turnTimer -= dt;
       if (vacuum.turnTimer <= 0) {
         vacuum.turnTimer = 3.5 + Math.random() * 4.0;
@@ -1464,6 +2057,38 @@ export function buildProps(scene: any, world: any, apt: any) {
     for (const p of props) {
       if (p.scoreCd > 0) p.scoreCd -= dt;
     }
+
+    if (floorLampProp) {
+      if (floorLampProp.broken) {
+        lampLight.intensity = 0;
+      } else {
+        const up = new CANNON.Vec3(0, 1, 0);
+        floorLampProp.body.quaternion.vmult(up, up);
+        if (up.y < 0.65) lampLight.intensity = 0;
+        else if (lampLight.intensity === 0) lampLight.intensity = 0.65;
+      }
+    }
+    if (bedLampProp) {
+      if (bedLampProp.broken) {
+        bedLampLight.intensity = 0;
+      } else {
+        const up = new CANNON.Vec3(0, 1, 0);
+        bedLampProp.body.quaternion.vmult(up, up);
+        if (up.y < 0.65) bedLampLight.intensity = 0;
+        else if (bedLampLight.intensity === 0) bedLampLight.intensity = 0.45;
+      }
+    }
+
+    if (tvProp && tvProp.broken) {
+      if ((tvProp as any)._smokeTimer === undefined) (tvProp as any)._smokeTimer = 0;
+      if ((tvProp as any)._smokeTimer < 5.0) {
+        (tvProp as any)._smokeTimer += dt;
+        if (Math.random() < dt * 3 && KOTO.fx && KOTO.fx.smoke) {
+          const bp = tvProp.body.position;
+          KOTO.fx.smoke(bp.x, bp.y + 0.25, bp.z, 1);
+        }
+      }
+    }
   }
 
   function removeProp(prop: Prop) {
@@ -1474,8 +2099,11 @@ export function buildProps(scene: any, world: any, apt: any) {
   }
 
   function resetProps() {
+    if (vacuum && vacuum.reset) {
+      vacuum.reset();
+    }
     props.forEach(p => {
-      if (p.broken) {
+      if (p.broken && !p.keepMeshOnBreak) {
         scene.add(p.mesh);
         world.addBody(p.body);
       }
@@ -1492,8 +2120,14 @@ export function buildProps(scene: any, world: any, apt: any) {
       }
       p.body.velocity.set(0, 0, 0);
       p.body.angularVelocity.set(0, 0, 0);
+      p.body.quaternion.set(0, 0, 0, 1);
       p.body.sleep();
     });
+    if (tvProp) (tvProp as any)._smokeTimer = 0;
+    if (lampLight) lampLight.intensity = 0.65;
+    if (bedLampLight) bedLampLight.intensity = 0.45;
+    if (typeof tvCartoon !== "undefined") tvCartoon.reset();
+    if (typeof tvScreenMat !== "undefined") tvScreenMat.emissiveIntensity = 0.7;
     transients.forEach(t => {
       scene.remove(t.mesh);
       if (t.body) world.removeBody(t.body);

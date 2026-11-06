@@ -27,6 +27,7 @@ export interface AudioSystem {
   hiss(): void
   vacuumBroke(): void
   drift(): void
+  phoneRing(): void
   rankSting(rankKey?: string): void
 }
 
@@ -486,6 +487,28 @@ export const AudioSys: AudioSystem = {
     g.connect(this.master)
     src.start(t0)
     src.stop(t0 + 0.18)
+  },
+
+  phoneRing(): void {
+    if (!this.ctx || !this.master || !this._gate('phoneRing', 1.0)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    ;[440, 480].forEach(f => {
+      const osc = ctx.createOscillator()
+      const g = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(f, t0)
+      g.gain.setValueAtTime(0, t0)
+      for (let i = 0; i < 4; i++) {
+        const rt = t0 + i * 0.12
+        g.gain.setValueAtTime(0.08, rt)
+        g.gain.setValueAtTime(0, rt + 0.08)
+      }
+      osc.connect(g)
+      g.connect(this.master!)
+      osc.start(t0)
+      osc.stop(t0 + 0.6)
+    })
   },
 
   rankSting(rankKey?: string): void {

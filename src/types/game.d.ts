@@ -28,6 +28,7 @@ export interface Prop {
   scored?: boolean
   _isDailySpecial?: boolean
   _isLassoThrown?: boolean
+  keepMeshOnBreak?: boolean
 }
 
 export interface GameStateSnapshot {

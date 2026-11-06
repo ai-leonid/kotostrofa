@@ -170,6 +170,8 @@ export const game: GameAPI = (function () {
     dailySpecialDone: false,
     ultraChaos: false,
     ultraChaosT: 0,
+    zoomiesT: 0,
+    nightHuntT: 0,
     metaQuests: { vacuumSlayer: false, totalRampage: false, chaosStar: false },
     roomsVisitedInCombo: [],
     hardMode: false
@@ -348,6 +350,12 @@ export const game: GameAPI = (function () {
 
   function addScore(pts: number, room?: string) {
     if (state.ultraChaos) pts = Math.round(pts * 1.5);
+    if (state.nightHuntT > 0) {
+      pts = Math.round(pts * 2.0);
+      if (refs && refs.cat && refs.cat.body) {
+        floater(refs.cat.body.position, "🌙 НОЧНАЯ ОХОТА ×2!", "gold");
+      }
+    }
     state.score += pts;
     if (room && state.progress[room] !== undefined) state.progress[room] += pts;
   }
@@ -455,7 +463,6 @@ export const game: GameAPI = (function () {
     if (DISHES.indexOf(prop.name) >= 0) state.dishes += 1;
     onEvent({ type: "break", name: prop.name, room: prop.room, prop: prop });
     record("Разбил: " + prop.name, pts);
-    KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 6, prop.body.velocity);
 
     // Hit-stop при сильных разрушениях
     if (prop.value >= 800 || prop.name === "телевизор" || prop.name === "аквариум") {
@@ -465,7 +472,10 @@ export const game: GameAPI = (function () {
     if (KOTO.fx) {
       const bp = prop.body.position;
       if (prop.name === "телевизор" || prop.name === "тостер" || prop.name === "лампу" || prop.name === "фен") {
-        KOTO.fx.sparks(bp.x, bp.y + 0.1, bp.z, 16);
+        KOTO.fx.sparks(bp.x, bp.y + 0.1, bp.z, 20);
+        if (prop.name === "телевизор") {
+          KOTO.fx.smoke(bp.x, bp.y + 0.2, bp.z, 4);
+        }
       }
       if (prop.name === "аквариум" || prop.name === "миску с водой") {
         KOTO.fx.splashes(bp.x, bp.y + 0.2, bp.z, 20);
@@ -475,7 +485,14 @@ export const game: GameAPI = (function () {
       }
     }
 
-    KOTO.propsSys.removeProp(prop);
+    if (prop.keepMeshOnBreak || prop.name === "телевизор") {
+      prop.broken = true;
+      KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 3, prop.body.velocity);
+    } else {
+      KOTO.propsSys.spawnShards(prop.body.position, prop.shardColor, 6, prop.body.velocity);
+      KOTO.propsSys.removeProp(prop);
+    }
+
     floater(prop.body.position, dailyPrefix + "+" + fmt(pts) + "₽", "break");
     addFeed("Разбил: " + prop.name + " +" + fmt(pts) + "₽");
     AudioSys.crash(Math.min(1, v / 5));
@@ -900,42 +917,42 @@ export const game: GameAPI = (function () {
     }, 2000);
   }
 
-  // GP-05: Случайные события «Катастрофа»
+  // GP-05: Случайные события (интерактив и тактика без авто-разрушений!)
   function triggerCatastrophe() {
     if (state.mode !== "play" || state.paused) return;
-    const kind = Math.floor(Math.random() * 3);
+    const kind = Math.floor(Math.random() * 4);
     if (kind === 0) {
-      showBanner("⚡ ЗЕМЛЕТРЯСЕНИЕ! ВСЁ ДРОЖИТ!", "warn", 2.5);
+      // 1. Землетрясение: пол дрожит, кот теряет сцепление (дрифт). Предметы НЕ падают сами!
+      showBanner("⚡ ЗЕМЛЕТРЯСЕНИЕ! ПОЛ ДРОЖИТ!", "warn", 2.5);
       state.shake = 1.0;
-      AudioSys.crash(0.6);
-      addFeed("⚡ ЗЕМЛЕТРЯСЕНИЕ! Предметы теряют равновесие!");
-      const propsList = (refs && refs.propsSys && refs.propsSys.props) || [];
-      propsList.forEach((p: any) => {
-        if (!p.broken && p.body && !p.hang) {
-          p.body.wakeUp();
-          p.body.applyImpulse(
-            new CANNON.Vec3((Math.random() - 0.5) * 1.6, 0.4, (Math.random() - 0.5) * 1.6),
-            new CANNON.Vec3(0, 0, 0)
-          );
-        }
-      });
+      if (AudioSys.crash) AudioSys.crash(0.6);
+      addFeed("⚡ ЗЕМЛЕТРЯСЕНИЕ! Пол уходит из-под лап, удерживай баланс!");
+      if (refs.cat && refs.cat.drift) refs.cat.drift(3.0);
     } else if (kind === 1) {
-      showBanner("🌩️ ГРОЗА ЗА ОКНОМ!", "", 2.0);
+      // 2. Гроза: вспышка молнии + режим ночной охоты (активные удары лапой дают x2 очков)
+      showBanner("🌩️ ГРОЗА! НОЧНАЯ ОХОТА (×2 ОЧКОВ)!", "gold", 2.5);
       bus.emit('catastrophe:thunder', {});
-      AudioSys.crash(0.8);
-      addFeed("🌩️ ГРОЗА! Вспышка молнии озарила квартиру!");
+      if (AudioSys.crash) AudioSys.crash(0.8);
+      addFeed("🌩️ ГРОЗА! В темноте удары лапой приносят ×2 очков!");
+      state.nightHuntT = 6.5;
+    } else if (kind === 2) {
+      // 3. Телефонный звонок: робот-пылесос отвлекается и замирает на месте на 7 сек!
+      showBanner("☎️ ЗВОНОК ТЕЛЕФОНА! ПЫЛЕСОС ОТВЛЕКСЯ!", "", 2.5);
+      if (AudioSys.phoneRing) AudioSys.phoneRing();
+      else if (AudioSys.thud) AudioSys.thud();
+      addFeed("☎️ ЗВОНОК ТЕЛЕФОНА! Робот «Жорка-3000» в замешательстве замер на месте!");
+      const vacuum = refs && refs.propsSys && refs.propsSys.vacuum;
+      if (vacuum && !vacuum.broken) {
+        vacuum.stunTimer = 7.0;
+        vacuum.scareCd = 7.0;
+      }
+      if (refs.cat && refs.cat.scare) refs.cat.scare(1.0);
     } else {
-      showBanner("☎️ ТЕЛЕФОННЫЙ ЗВОНОК!", "", 2.0);
-      if (refs.cat && refs.cat.scare) refs.cat.scare(2.0);
-      AudioSys.thud();
-      addFeed("☎️ РЕЗКИЙ ЗВОНОК НАПУГАЛ КОТА!");
-      const propsList = (refs && refs.propsSys && refs.propsSys.props) || [];
-      propsList.forEach((p: any) => {
-        if (!p.broken && p.body && (p.mass || 0.4) <= 0.4 && !p.hang) {
-          p.body.wakeUp();
-          p.body.velocity.y += 1.4;
-        }
-      });
+      // 4. Бешеный тыгыдык: взрыв энергии, скорость кота +40%!
+      showBanner("🐾 БЕШЕНЫЙ ТЫГЫДЫК! СКОРОСТЬ +40%!", "gold", 2.5);
+      if (AudioSys.hiss) AudioSys.hiss();
+      addFeed("🐾 БЕШЕНЫЙ ТЫГЫДЫК! Прилив кошачьей энергии на 6 секунд!");
+      state.zoomiesT = 6.5;
     }
   }
 
@@ -1059,6 +1076,8 @@ export const game: GameAPI = (function () {
       state.dailySpecialDone = false;
       state.ultraChaos = false;
       state.ultraChaosT = 0;
+      state.zoomiesT = 0;
+      state.nightHuntT = 0;
       state.metaQuests = { vacuumSlayer: false, totalRampage: false, chaosStar: false };
       state.roomsVisitedInCombo = [];
       disasterTimer = 22 + Math.random() * 8;
@@ -1124,6 +1143,8 @@ export const game: GameAPI = (function () {
           addFeed("Режим Ультра-хаос завершён.");
         }
       }
+      if (state.zoomiesT > 0) state.zoomiesT -= dt;
+      if (state.nightHuntT > 0) state.nightHuntT -= dt;
       disasterTimer -= dt;
       if (disasterTimer <= 0) {
         disasterTimer = 22 + Math.random() * 8;

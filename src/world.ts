@@ -707,17 +707,9 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
   bedRug.receiveShadow = true
   scene.add(bedRug)
 
-  // BUG-06: Невидимые коллайдеры для мебели
-  function invisCollider(x: number, y: number, z: number, sx: number, sy: number, sz: number): CANNON.Body {
-    const b = new CANNON.Body({ mass: 0, material: M.wall })
-    b.addShape(new CANNON.Box(new CANNON.Vec3(sx / 2, sy / 2, sz / 2)))
-    b.position.set(x, y, z)
-    world.addBody(b)
-    return b
-  }
-  // Дополнительные коллайдеры для предотвращения застревания камеры
-  invisCollider(-6.47, 0.45, 0.9, 1.2, 0.9, 2.8) // диван
-  invisCollider(10.2, 0.45, -3.35, 1.6, 0.9, 2.1) // кровать
+  // BUG-06: Невидимые коллайдеры мебели (если требуются без коллизий для кота)
+  // Примечание: диван и кровать уже имеют точные физические коллайдеры в box().
+  // Дополнительные сплошные коллайдеры поверх сидений дивана/кровати вызывают левитацию кота и подушек.
 
   // ---------- свет ----------
   const hemi = new THREE.HemisphereLight('#b8a892', '#4a3f32', 0.85)
@@ -739,22 +731,187 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
   scene.add(moon)
   scene.add(moon.target)
 
-  const pKit = new THREE.PointLight('#ffd9a0', 1.5, 12, 1.2)
-  pKit.position.set(2.5, 2.4, -2.2)
-  scene.add(pKit)
-  const pBath = new THREE.PointLight('#cfe2ff', 1.3, 10, 1.2)
-  pBath.position.set(2.5, 2.4, 2.6)
-  scene.add(pBath)
-  const pLiv = new THREE.PointLight('#ffe6c0', 1.4, 12, 1.2)
-  pLiv.position.set(-4.2, 2.4, 0.6)
-  scene.add(pLiv)
-  const pBed = new THREE.PointLight('#ffd9b0', 1.5, 12, 1.2)
-  pBed.position.set(9.2, 2.4, -0.6)
-  scene.add(pBed)
+  // ---------- реальные 3D потолочные люстры и светильники ----------
+  // 1. Гостиная: современная 4-рожковая люстра
+  const livChandelier = new THREE.Group()
+  const livCanopy = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.035, 24), std('#2b261f', 0.4, 0.7))
+  livCanopy.position.set(-4.2, 2.682, 0.6)
+  livChandelier.add(livCanopy)
+  const livRod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.44, 12), std('#a88434', 0.3, 0.8))
+  livRod.position.set(-4.2, 2.44, 0.6)
+  livChandelier.add(livRod)
+  const livHub = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 12), std('#a88434', 0.3, 0.8))
+  livHub.position.set(-4.2, 2.22, 0.6)
+  livChandelier.add(livHub)
+  const livFinial = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 12), std('#a88434', 0.3, 0.8))
+  livFinial.rotation.x = Math.PI
+  livFinial.position.set(-4.2, 2.15, 0.6)
+  livChandelier.add(livFinial)
+  for (let a = 0; a < 4; a++) {
+    const angle = (a * Math.PI) / 2
+    const cosA = Math.cos(angle)
+    const sinA = Math.sin(angle)
+    const armLen = 0.38
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, armLen, 8), std('#a88434', 0.3, 0.8))
+    arm.rotation.z = Math.PI / 2
+    arm.rotation.y = -angle
+    arm.position.set(-4.2 + (cosA * armLen) / 2, 2.22, 0.6 + (sinA * armLen) / 2)
+    livChandelier.add(arm)
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.04, 12), std('#a88434', 0.3, 0.8))
+    cup.position.set(-4.2 + cosA * armLen, 2.24, 0.6 + sinA * armLen)
+    livChandelier.add(cup)
+    const globe = new THREE.Mesh(
+      new THREE.SphereGeometry(0.075, 14, 12),
+      new THREE.MeshStandardMaterial({
+        color: '#fffbf0',
+        emissive: '#ffd98a',
+        emissiveIntensity: 0.95,
+        roughness: 0.2
+      })
+    )
+    globe.position.set(-4.2 + cosA * armLen, 2.29, 0.6 + sinA * armLen)
+    livChandelier.add(globe)
+  }
+  scene.add(livChandelier)
 
-  // GR-05: Дополнительный SpotLight для теней в гостиной
-  const livingSpot = new THREE.SpotLight('#ffe8ba', 1.2, 14, Math.PI / 3, 0.65, 1.2)
-  livingSpot.position.set(-4.2, 2.65, 0.6)
+  // 2. Кухня: подвесной купольный светильник
+  const kitPendant = new THREE.Group()
+  const kitCanopy = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.03, 20), std('#1f2329', 0.5, 0.5))
+  kitCanopy.position.set(2.5, 2.685, -2.2)
+  kitPendant.add(kitCanopy)
+  const kitCord = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.48, 8), std('#15171c', 0.8, 0.2))
+  kitCord.position.set(2.5, 2.435, -2.2)
+  kitPendant.add(kitCord)
+  const kitCap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.035, 16), std('#c4983b', 0.3, 0.8))
+  kitCap.position.set(2.5, 2.19, -2.2)
+  kitPendant.add(kitCap)
+  const kitShade = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.32, 0.22, 24, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: '#2b303a',
+      roughness: 0.5,
+      side: THREE.DoubleSide
+    })
+  )
+  kitShade.position.set(2.5, 2.08, -2.2)
+  kitPendant.add(kitShade)
+  const kitBulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 14, 12),
+    new THREE.MeshStandardMaterial({
+      color: '#fff7e0',
+      emissive: '#ffca5c',
+      emissiveIntensity: 1.1,
+      roughness: 0.2
+    })
+  )
+  kitBulb.position.set(2.5, 2.05, -2.2)
+  kitPendant.add(kitBulb)
+  scene.add(kitPendant)
+
+  // 3. Ванная: потолочный влагозащищенный плафон
+  const bathPlafond = new THREE.Group()
+  const bathBase = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.045, 28), std('#d0d8e0', 0.15, 0.85))
+  bathBase.position.set(2.5, 2.678, 2.6)
+  bathPlafond.add(bathBase)
+  const bathGlass = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    new THREE.MeshStandardMaterial({
+      color: '#eef6fc',
+      emissive: '#cde4ff',
+      emissiveIntensity: 0.95,
+      roughness: 0.15,
+      transparent: true,
+      opacity: 0.92
+    })
+  )
+  bathGlass.rotation.x = Math.PI
+  bathGlass.position.set(2.5, 2.66, 2.6)
+  bathPlafond.add(bathGlass)
+  const bathFinial = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), std('#d0d8e0', 0.15, 0.85))
+  bathFinial.position.set(2.5, 2.37, 2.6)
+  bathPlafond.add(bathFinial)
+  scene.add(bathPlafond)
+
+  // 4. Спальня: люстра с барабанным тканевым абажуром
+  const bedPendant = new THREE.Group()
+  const bedCanopy = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.03, 20), std('#c4983b', 0.3, 0.8))
+  bedCanopy.position.set(9.2, 2.685, -0.6)
+  bedPendant.add(bedCanopy)
+  const bedCord = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.38, 8), std('#3a3222', 0.6, 0.4))
+  bedCord.position.set(9.2, 2.485, -0.6)
+  bedPendant.add(bedCord)
+  const bedCap = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.03, 16), std('#c4983b', 0.3, 0.8))
+  bedCap.position.set(9.2, 2.29, -0.6)
+  bedPendant.add(bedCap)
+  const bedDrum = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.36, 0.36, 0.22, 28, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: '#f4ede2',
+      emissive: '#ffd8a8',
+      emissiveIntensity: 0.4,
+      roughness: 0.85,
+      side: THREE.DoubleSide
+    })
+  )
+  bedDrum.position.set(9.2, 2.18, -0.6)
+  bedPendant.add(bedDrum)
+  const bedDiffuser = new THREE.Mesh(
+    new THREE.RingGeometry(0.04, 0.355, 28),
+    new THREE.MeshStandardMaterial({
+      color: '#fff8f0',
+      emissive: '#ffe3bd',
+      emissiveIntensity: 0.5,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide
+    })
+  )
+  bedDiffuser.rotation.x = -Math.PI / 2
+  bedDiffuser.position.set(9.2, 2.07, -0.6)
+  bedPendant.add(bedDiffuser)
+  const bedBulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06, 14, 12),
+    new THREE.MeshStandardMaterial({
+      color: '#fff2db',
+      emissive: '#ffcb6b',
+      emissiveIntensity: 1.0,
+      roughness: 0.2
+    })
+  )
+  bedBulb.position.set(9.2, 2.18, -0.6)
+  bedPendant.add(bedBulb)
+  scene.add(bedPendant)
+
+  // ---------- освещение комнат (привязано к реальным источникам) ----------
+  const pKit = new THREE.PointLight('#ffd9a0', 1.4, 12, 1.2)
+  pKit.position.set(2.5, 2.05, -2.2)
+  scene.add(pKit)
+  const kitSpot = new THREE.SpotLight('#ffd9a0', 1.0, 10, Math.PI * 0.38, 0.6, 1.2)
+  kitSpot.position.set(2.5, 2.05, -2.2)
+  kitSpot.target.position.set(2.5, 0, -2.2)
+  scene.add(kitSpot)
+  scene.add(kitSpot.target)
+
+  const pBath = new THREE.PointLight('#cfe2ff', 1.3, 10, 1.2)
+  pBath.position.set(2.5, 2.45, 2.6)
+  scene.add(pBath)
+
+  const pLiv = new THREE.PointLight('#ffe6c0', 1.3, 12, 1.2)
+  pLiv.position.set(-4.2, 2.22, 0.6)
+  scene.add(pLiv)
+
+  const pBed = new THREE.PointLight('#ffd9b0', 1.4, 12, 1.2)
+  pBed.position.set(9.2, 2.15, -0.6)
+  scene.add(pBed)
+  const bedSpot = new THREE.SpotLight('#ffd9b0', 0.9, 10, Math.PI * 0.38, 0.65, 1.2)
+  bedSpot.position.set(9.2, 2.15, -0.6)
+  bedSpot.target.position.set(9.2, 0, -0.6)
+  scene.add(bedSpot)
+  scene.add(bedSpot.target)
+
+  // GR-05: Дополнительный SpotLight для мягкого направленного света люстры в гостиной
+  const livingSpot = new THREE.SpotLight('#ffe8ba', 1.2, 14, Math.PI * 0.42, 0.7, 1.2)
+  livingSpot.position.set(-4.2, 2.22, 0.6)
   livingSpot.target.position.set(-4.2, 0, 0.6)
   scene.add(livingSpot)
   scene.add(livingSpot.target)
@@ -785,10 +942,13 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
         doors[did].close()
       }
     })
-    pKit.intensity = 1.5
+    pKit.intensity = 1.4
     pBath.intensity = 1.3
-    pLiv.intensity = 1.4
-    pBed.intensity = 1.5
+    pLiv.intensity = 1.3
+    pBed.intensity = 1.4
+    livingSpot.intensity = 1.2
+    kitSpot.intensity = 1.0
+    bedSpot.intensity = 0.9
   }
 
   const L = {

@@ -142,7 +142,11 @@ if (HARD) {
   if (cat.setGhostMode) cat.setGhostMode(true)
 }
 
-renderer.domElement.addEventListener('mousedown', function () {
+let mouseHoldTimer: any = null
+let mouseIsHoldingLasso = false
+
+renderer.domElement.addEventListener('mousedown', function (e: MouseEvent) {
+  if (e.button !== 0) return
   const st = game.state
   if (st.mode !== 'play') return
   if (!document.pointerLockElement && !AUTO) {
@@ -151,9 +155,52 @@ renderer.domElement.addEventListener('mousedown', function () {
     } catch {
       /* headless */
     }
-    return
   }
-  swipe()
+  if (!mouseHoldTimer && !mouseIsHoldingLasso) {
+    mouseHoldTimer = setTimeout(() => {
+      mouseIsHoldingLasso = true
+      if (game.onLassoHold) game.onLassoHold()
+    }, 220)
+  }
+})
+
+window.addEventListener('mouseup', function (e: MouseEvent) {
+  if (e.button !== 0) return
+  if (mouseHoldTimer) {
+    clearTimeout(mouseHoldTimer)
+    mouseHoldTimer = null
+  }
+  if (mouseIsHoldingLasso) {
+    mouseIsHoldingLasso = false
+    if (game.onLassoRelease) game.onLassoRelease()
+  } else {
+    const st = game.state
+    if (st.mode === 'play') {
+      swipe()
+    }
+  }
+})
+
+window.addEventListener('blur', function () {
+  if (mouseHoldTimer) {
+    clearTimeout(mouseHoldTimer)
+    mouseHoldTimer = null
+  }
+  if (mouseIsHoldingLasso) {
+    mouseIsHoldingLasso = false
+    if (game.onLassoRelease) game.onLassoRelease()
+  }
+})
+
+document.addEventListener('pointerlockchange', function () {
+  if (!document.pointerLockElement && mouseIsHoldingLasso) {
+    if (mouseHoldTimer) {
+      clearTimeout(mouseHoldTimer)
+      mouseHoldTimer = null
+    }
+    mouseIsHoldingLasso = false
+    if (game.onLassoRelease) game.onLassoRelease()
+  }
 })
 
 document.addEventListener('mousemove', function (e) {
@@ -256,7 +303,43 @@ function bindBtn(id: string, fn: () => void) {
 bindBtn('tb-jump', function () {
   inputManager.triggerJump()
 })
-bindBtn('tb-swipe', swipe)
+
+const tbSwipe = document.getElementById('tb-swipe')
+if (tbSwipe) {
+  let touchHoldTimer: any = null
+  let touchIsHoldingLasso = false
+  tbSwipe.addEventListener(
+    'touchstart',
+    function (e) {
+      e.preventDefault()
+      if (!touchHoldTimer && !touchIsHoldingLasso) {
+        touchHoldTimer = setTimeout(() => {
+          touchIsHoldingLasso = true
+          if (game.onLassoHold) game.onLassoHold()
+        }, 220)
+      }
+    },
+    { passive: false }
+  )
+  tbSwipe.addEventListener(
+    'touchend',
+    function (e) {
+      e.preventDefault()
+      if (touchHoldTimer) {
+        clearTimeout(touchHoldTimer)
+        touchHoldTimer = null
+      }
+      if (touchIsHoldingLasso) {
+        touchIsHoldingLasso = false
+        if (game.onLassoRelease) game.onLassoRelease()
+      } else {
+        swipe()
+      }
+    },
+    { passive: false }
+  )
+}
+
 bindBtn('tb-meow', meow)
 
 const camTouches: Record<number, { x: number; y: number }> = {}
@@ -458,7 +541,7 @@ function updateCamera(dt: number) {
 
 function syncMeshes() {
   for (const p of propsSys.props) {
-    if (p.broken) continue
+    if (p.broken && !p.keepMeshOnBreak && p.name !== "телевизор") continue
     p.mesh.position.copy(p.body.position as any)
     p.mesh.quaternion.copy(p.body.quaternion as any)
   }
