@@ -59,6 +59,8 @@ window.KOTO.minimap = minimap
 window.KOTO.save = save
 window.KOTO.audio = AudioSys
 window.KOTO.bus = bus
+window.KOTO.scene = scene
+window.KOTO.camera = camera
 
 const cat = createCat(scene, world, apt.M, { x: -3.35, y: 0.26, z: 1.6 })
 cat.yaw = Math.PI / 2
@@ -96,6 +98,7 @@ const cam = {
   dist: 3.1,
   smooth: new THREE.Vector3(-3.35, 0.55, 1.6)
 }
+;(window.KOTO as any).cam = cam
 
 const TOUCH =
   'ontouchstart' in window ||
@@ -562,6 +565,9 @@ window.KOTO = window.KOTO || {}
 window.KOTO.hitStop = function (ms: number) {
   hitStopUntil = performance.now() + (ms || 35)
 }
+;(window.KOTO as any).setIdleStillTimer = function (v: number) {
+  idleStillTimer = v
+}
 
 const portraitCanvas = document.getElementById('hud-cat-portrait') as HTMLCanvasElement | null
 const portraitCtx = portraitCanvas?.getContext('2d')
@@ -579,12 +585,13 @@ function updateCatPortrait(dt: number) {
   const isScared = cat.scaredT > 0
   const isMeow = cat.meowT > 0
   const isRunning = inputManager.getInput().run
+  const isPurring = idleStillTimer >= 8.0
 
   ctx.save()
   // Фон
   ctx.beginPath()
   ctx.arc(32, 32, 30, 0, Math.PI * 2)
-  ctx.fillStyle = isScared ? '#5e1b1b' : (isMeow ? '#2b4d24' : '#1b2234')
+  ctx.fillStyle = isScared ? '#5e1b1b' : (isMeow ? '#2b4d24' : (isPurring ? '#2e253e' : '#1b2234'))
   ctx.fill()
 
   // Ушки
@@ -612,6 +619,20 @@ function updateCatPortrait(dt: number) {
     ctx.lineWidth = 2
     ctx.beginPath(); ctx.moveTo(19, 33); ctx.lineTo(29, 33); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(35, 33); ctx.lineTo(45, 33); ctx.stroke()
+  } else if (isPurring) {
+    // Блаженные прищуренные глазки мурчащего кота ^_^
+    ctx.strokeStyle = '#222'
+    ctx.lineWidth = 2.2
+    ctx.beginPath(); ctx.arc(24, 33, 4.5, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke()
+    ctx.beginPath(); ctx.arc(40, 33, 4.5, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke()
+    // Румянец
+    ctx.fillStyle = 'rgba(255, 120, 150, 0.45)'
+    ctx.beginPath(); ctx.arc(17, 37, 3.2, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(47, 37, 3.2, 0, Math.PI * 2); ctx.fill()
+    // Маленькая нотка над головой
+    ctx.fillStyle = '#ffdf7e'
+    ctx.font = '11px sans-serif'
+    ctx.fillText('♪', 44, 20)
   } else if (isRunning) {
     ctx.fillStyle = '#ffffff'
     ctx.beginPath(); ctx.ellipse(24, 32, 5, 3, 0, 0, Math.PI * 2); ctx.fill()
@@ -644,6 +665,12 @@ function updateCatPortrait(dt: number) {
   if (isMeow) {
     ctx.fillStyle = '#d63447'
     ctx.beginPath(); ctx.arc(32, 43, 4, 0, Math.PI); ctx.fill(); ctx.stroke()
+  } else if (isPurring) {
+    // Довольная кошачья мордочка :3
+    ctx.beginPath()
+    ctx.moveTo(26, 42); ctx.quadraticCurveTo(29, 44, 32, 42)
+    ctx.quadraticCurveTo(35, 44, 38, 42)
+    ctx.stroke()
   } else {
     ctx.beginPath()
     ctx.moveTo(27, 42); ctx.quadraticCurveTo(32, 45, 32, 41)
@@ -665,6 +692,120 @@ function updateCatPortrait(dt: number) {
 const FIXED_DT = 1 / 60
 let accumulator = 0
 const IDLE_INPUT = { f: false, b: false, l: false, r: false, run: false, jump: false, camYaw: -Math.PI / 2 }
+
+let dripTimer = 1.8
+let tvSoundTimer = 1.0
+let aquaTimer = 2.0
+let vacSputterTimer = 0.5
+let clockTimer = 0.8
+let purrTimer = 0
+let idleStillTimer = 0
+let lastCatX = 0, lastCatZ = 0
+let clockTickTock = false
+
+function updateProximityAudio(dt: number) {
+  if (game.state.mode !== 'play' || game.state.paused || !cat || !cat.body) return
+  const cp = cat.body.position
+
+  // Мурчание котика при отдыхе без движения > 8.0 сек
+  const moved = Math.hypot(cp.x - lastCatX, cp.z - lastCatZ)
+  lastCatX = cp.x
+  lastCatZ = cp.z
+  const PURR_IDLE_SECS = 8.0
+  if (moved < 0.02) {
+    const wasIdle = idleStillTimer >= PURR_IDLE_SECS
+    idleStillTimer += dt
+    if (idleStillTimer >= PURR_IDLE_SECS) {
+      if (!wasIdle) {
+        // Первый вдох-выдох мурлыканья сразу по достижении 8 сек
+        purrTimer = 0
+        AudioSys.purr(0.15)
+      } else {
+        purrTimer += dt
+        if (purrTimer >= 2.2) {
+          purrTimer = 0
+          AudioSys.purr(0.15)
+        }
+      }
+    }
+  } else {
+    if (idleStillTimer >= PURR_IDLE_SECS) {
+      AudioSys.stopPurr()
+    }
+    idleStillTimer = 0
+    purrTimer = 0
+  }
+  if (window.KOTO) (window.KOTO as any).idleStillTimer = idleStillTimer
+
+  // 1. Ванная: капающая вода около ванны/раковины
+  const dWater = Math.min(Math.hypot(cp.x - 0.9, cp.z - 4.0), Math.hypot(cp.x - 6.2, cp.z - 1.3))
+  if (dWater < 2.5) {
+    dripTimer += dt
+    if (dripTimer > 3.0) {
+      dripTimer = 0
+      const vol = (1 - dWater / 2.5) * 0.12
+      AudioSys.waterDrip(vol)
+    }
+  } else {
+    dripTimer = Math.min(dripTimer, 2.0)
+  }
+
+  // 2. Телевизор в гостиной
+  const dTv = Math.hypot(cp.x - (-2.0), cp.z - 0.9)
+  if (dTv < 2.8) {
+    tvSoundTimer += dt
+    const tv = propsSys.props.find((p: any) => p.name === 'телевизор')
+    const isBroken = tv ? tv.broken : false
+    const interval = isBroken ? 0.9 : 1.6
+    if (tvSoundTimer > interval) {
+      tvSoundTimer = 0
+      const vol = (1 - dTv / 2.8) * (isBroken ? 0.08 : 0.11)
+      AudioSys.tvAudio(isBroken, vol)
+    }
+  } else {
+    tvSoundTimer = Math.min(tvSoundTimer, 1.0)
+  }
+
+  // 3. Сломанный робот-пылесос
+  if (propsSys.vacuum && propsSys.vacuum.broken) {
+    const vp = propsSys.vacuum.pos
+    const dVac = Math.hypot(cp.x - vp.x, cp.z - vp.z)
+    if (dVac < 3.2) {
+      vacSputterTimer += dt
+      if (vacSputterTimer > 0.8) {
+        vacSputterTimer = 0
+        const vol = (1 - dVac / 3.2) * 0.14
+        AudioSys.vacuumSputter(vol)
+      }
+    }
+  }
+
+  // 4. Аквариум на кухне
+  const aqua = propsSys.props.find((p: any) => p.name === 'аквариум')
+  if (aqua && !aqua.broken) {
+    const dAqua = Math.hypot(cp.x - 5.4, cp.z - (-4.2))
+    if (dAqua < 2.2) {
+      aquaTimer += dt
+      if (aquaTimer > 2.8) {
+        aquaTimer = 0
+        const vol = (1 - dAqua / 2.2) * 0.12
+        AudioSys.aquariumBubble(vol)
+      }
+    }
+  }
+
+  // 5. Настенные часы в гостиной
+  const dClock = Math.hypot(cp.x - (-4.5), cp.z - 4.46)
+  if (dClock < 2.0) {
+    clockTimer += dt
+    if (clockTimer > 1.0) {
+      clockTimer = 0
+      clockTickTock = !clockTickTock
+      const vol = (1 - dClock / 2.0) * 0.08
+      AudioSys.clockTick(clockTickTock, vol)
+    }
+  }
+}
 
 function loop(now: number): void {
   requestAnimationFrame(loop)
@@ -705,6 +846,7 @@ function loop(now: number): void {
     cat.update(dt, currentInput as any)
     propsSys.update(dt)
     apt.update(dt)
+    updateProximityAudio(dt)
     inputManager.consumeJump()
   }
 

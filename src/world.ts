@@ -365,7 +365,7 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
     )
     glass.position.set(cx, y0 + h / 2, fz + 0.12)
     scene.add(glass)
-    if (cx !== -5.4) {
+    if (cx !== -5.4 && cx !== -3.4) {
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, w + 0.5, 8), std('#6b4a33', 0.6))
       rod.rotation.z = Math.PI / 2
       rod.position.set(cx, y0 + h + 0.24, fz + 0.17)
@@ -536,6 +536,9 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
   ].forEach(function (o) {
     box(-4.3 + o[0], 0.21, 0.9 + o[1], 0.06, 0.42, 0.06, tableMat)
   })
+  // Царга и блокиратор под столиком: просвет 15 см для проезда робота-пылесоса (h=8см),
+  // но непреодолимое препятствие для кота (h=44см), чтобы кот не застревал под столом
+  box(-4.3, 0.28, 0.9, 0.96, 0.26, 0.56, tableMat, { cast: false })
 
   const rugTex = canvasTexture(128, function (g, s) {
     g.fillStyle = '#8a4a5e'
@@ -972,7 +975,7 @@ export function buildApartment(scene: THREE.Scene, world: CANNON.World): Apartme
     sofa: { x: -5.95, z: 0.9, r: 1.1, name: 'диван', points: 120, questId: 'sofa' },
     catTree: { x: -6.5, z: 3.15, r: 0.55, name: 'когтеточку', points: 50 },
     bedRug: { x: 9.2, z: -0.9, r: 1.15, name: 'ковёр в спальне', points: 100, questId: 'bedrug' },
-    fishbowlPos: { x: 5.4, y: 1.1, z: -4.2 },
+    fishbowlPos: { x: 5.4, y: 1.20, z: -4.2 },
     rooms: levels.ROOMS
   }
 

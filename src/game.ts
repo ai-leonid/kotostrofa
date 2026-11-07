@@ -429,7 +429,19 @@ export const game: GameAPI = (function () {
         floater(prop.body.position, "0₽ (анти-фарм)", "");
         addFeed("Сбил: " + prop.name + " — 0 ₽ (анти-фарм: переключись на другой предмет!)");
       }
-      if (v > 2.2) AudioSys.crash(0.3); else AudioSys.thud();
+      if (prop.name === "утёнка" && AudioSys.squeak) {
+        AudioSys.squeak();
+      } else if ((prop.name === "подушку" || prop.name === "полотенце" || prop.name === "стопку полотенец" || prop.name === "мочалку") && AudioSys.softPuff) {
+        AudioSys.softPuff();
+      } else if (prop.name === "телефон" && AudioSys.phoneBeep) {
+        AudioSys.phoneBeep();
+      } else if ((prop.name === "кастрюлю с борщом" || prop.name === "тазик" || prop.name === "тостер" || prop.name === "весы") && AudioSys.metallicClang) {
+        AudioSys.metallicClang();
+      } else if ((prop.name === "пульт" || prop.name === "мыло" || prop.name === "стакан с щётками" || prop.name === "освежитель") && AudioSys.plasticClack) {
+        AudioSys.plasticClack();
+      } else {
+        if (v > 2.2) AudioSys.crash(0.3); else AudioSys.thud();
+      }
       if (prop.name === "подушку" && KOTO.fx) {
         KOTO.fx.feathers(prop.body.position.x, prop.body.position.y + 0.1, prop.body.position.z, 6);
       }
@@ -506,10 +518,12 @@ export const game: GameAPI = (function () {
     b.type = CANNON.Body.DYNAMIC;
     b.mass = prop.mass;
     b.updateMassProperties();
-    if (prop.name === "карниз со шторами") {
+    if (prop.name === "карниз со шторами" || prop.name.indexOf("карниз") >= 0) {
       prop.scored = true;
-      b.velocity.set(0, -0.6, 1.4);
-      b.angularVelocity.set(2.8, 0, (Math.random() - 0.5) * 3);
+      // Выдвигаем сорванный карниз вперед в комнату, чтобы он гарантированно миновал книжный шкаф (z = -4.0)
+      b.position.z = Math.max(b.position.z, -3.85);
+      b.velocity.set(0, -2.0, 1.8);
+      b.angularVelocity.set(0.6, 0, (Math.random() - 0.5) * 1.2);
       state.shake = 1.0;
       AudioSys.crash(0.8);
       comboUp();
@@ -548,7 +562,16 @@ export const game: GameAPI = (function () {
       const dx = p.x - cp.x, dy = p.y - cp.y, dz = p.z - cp.z;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (prop.hang && !prop.released) {
-        const reach = prop.name === "карниз со шторами" ? 2.3 : 1.6;
+        if (prop.name.indexOf("карниз") >= 0) {
+          const dx = p.x - cp.x;
+          const dz = p.z - cp.z;
+          // Карниз широкий (~2м) и висит вдоль стены. Кот достает его с пола или в прыжке
+          if (Math.abs(dx) < 1.4 && Math.abs(dz) < 1.8 && cp.y <= 2.8) {
+            releaseHang(prop);
+            continue;
+          }
+        }
+        const reach = 1.6;
         if (d < reach) releaseHang(prop);
         continue;
       }
@@ -1199,6 +1222,7 @@ export const game: GameAPI = (function () {
     },
     onLassoHold: onLassoHold,
     onLassoRelease: onLassoRelease,
+    releaseHang: releaseHang,
     getLassoProp: function () { return lassoProp; },
     triggerCatastrophe: triggerCatastrophe,
     getSnapshot: function () {

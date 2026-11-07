@@ -15,6 +15,8 @@ declare global {
       audio?: any
       input?: any
       bus?: any
+      scene?: any
+      camera?: any
       currentFrame?: number
       hitStop?: (ms?: number) => void
     }

@@ -1,5 +1,5 @@
 import type * as THREE from 'three'
-import type { Body, Vec3 } from 'cannon-es'
+import type { Body, Vec3, Quaternion } from 'cannon-es'
 
 export type RoomId = 'living' | 'kitchen' | 'bath' | 'bedroom'
 export type GameMode = 'menu' | 'play' | 'over'
@@ -25,6 +25,7 @@ export interface Prop {
   repeatHits?: number
   lastHitAt?: number
   initialPosition?: Vec3
+  initialQuaternion?: Quaternion
   scored?: boolean
   _isDailySpecial?: boolean
   _isLassoThrown?: boolean

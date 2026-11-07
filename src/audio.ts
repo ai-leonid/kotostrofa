@@ -2,12 +2,16 @@ export interface AudioSystem {
   ctx: AudioContext | null
   master: GainNode | null
   noiseBuf: AudioBuffer | null
+  purrBuf?: AudioBuffer | null
+  _purrSource?: AudioBufferSourceNode | null
+  _purrGain?: GainNode | null
   _last: Record<string, number>
   muted: boolean
   init(): void
   resume(): void
   _gate(key: string, gap: number): boolean
   _noise(rate?: number): AudioBufferSourceNode
+  _initPurrBuffer?(): void
   _ambient(): void
   meow(): void
   crash(intensity?: number): void
@@ -29,12 +33,27 @@ export interface AudioSystem {
   drift(): void
   phoneRing(): void
   rankSting(rankKey?: string): void
+  waterDrip(vol?: number): void
+  tvAudio(broken?: boolean, vol?: number): void
+  aquariumBubble(vol?: number): void
+  vacuumSputter(vol?: number): void
+  clockTick(tick?: boolean, vol?: number): void
+  purr(vol?: number): void
+  stopPurr(): void
+  squeak(vol?: number): void
+  softPuff(vol?: number): void
+  metallicClang(vol?: number): void
+  plasticClack(vol?: number): void
+  phoneBeep(vol?: number): void
 }
 
 export const AudioSys: AudioSystem = {
   ctx: null,
   master: null,
   noiseBuf: null,
+  purrBuf: null,
+  _purrSource: null,
+  _purrGain: null,
   _last: {},
   muted: false,
 
@@ -53,6 +72,7 @@ export const AudioSys: AudioSystem = {
       this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
       const d = this.noiseBuf.getChannelData(0)
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+      this._initPurrBuffer()
       this._ambient()
     } catch {
       this.ctx = null
@@ -537,6 +557,362 @@ export const AudioSys: AudioSystem = {
       o.start(t0 + dt)
       o.stop(t0 + dt + 0.3)
     }
+  },
+
+  waterDrip(vol: number = 0.12): void {
+    if (!this.ctx || !this.master || !this._gate('waterDrip', 0.8)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    const startF = 1350 + Math.random() * 250
+    osc.frequency.setValueAtTime(startF, t0)
+    osc.frequency.exponentialRampToValueAtTime(700, t0 + 0.07)
+    const g = ctx.createGain()
+    const v = Math.min(0.25, Math.max(0.01, vol))
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08)
+    osc.connect(g)
+    g.connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.09)
+  },
+
+  tvAudio(broken: boolean = false, vol: number = 0.1): void {
+    if (!this.ctx || !this.master || !this._gate('tvAudio', broken ? 0.35 : 0.6)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.2, Math.max(0.01, vol))
+    if (broken) {
+      try {
+        const noise = this._noise(0.8)
+        const filter = ctx.createBiquadFilter()
+        filter.type = 'bandpass'
+        filter.frequency.value = 800
+        filter.Q.value = 1.2
+        const g = ctx.createGain()
+        g.gain.setValueAtTime(v * 0.4, t0)
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18)
+        noise.connect(filter)
+        filter.connect(g)
+        g.connect(this.master)
+        noise.start(t0)
+        noise.stop(t0 + 0.2)
+      } catch (e) {}
+    } else {
+      const notes = [
+        [523.25, 659.25],
+        [587.33, 783.99],
+        [659.25, 880.00],
+        [783.99, 1046.50]
+      ]
+      const pair = notes[Math.floor(Math.random() * notes.length)]
+      pair.forEach((f, idx) => {
+        const osc = ctx.createOscillator()
+        osc.type = 'triangle'
+        osc.frequency.value = f
+        const g = ctx.createGain()
+        const dt = idx * 0.06
+        g.gain.setValueAtTime(0.001, t0 + dt)
+        g.gain.exponentialRampToValueAtTime(v * 0.6, t0 + dt + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.09)
+        osc.connect(g)
+        g.connect(this.master!)
+        osc.start(t0 + dt)
+        osc.stop(t0 + dt + 0.1)
+      })
+    }
+  },
+
+  aquariumBubble(vol: number = 0.12): void {
+    if (!this.ctx || !this.master || !this._gate('aquariumBubble', 0.9)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    const startF = 320 + Math.random() * 80
+    osc.frequency.setValueAtTime(startF, t0)
+    osc.frequency.exponentialRampToValueAtTime(startF * 1.8, t0 + 0.08)
+    const g = ctx.createGain()
+    const v = Math.min(0.2, Math.max(0.01, vol))
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.015)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09)
+    osc.connect(g)
+    g.connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.1)
+  },
+
+  vacuumSputter(vol: number = 0.14): void {
+    if (!this.ctx || !this.master || !this._gate('vacuumSputter', 0.45)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.25, Math.max(0.01, vol))
+    const osc = ctx.createOscillator()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(65 + Math.random() * 20, t0)
+    osc.frequency.linearRampToValueAtTime(35, t0 + 0.12)
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = 280
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(v * 0.7, t0)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13)
+    osc.connect(filter)
+    filter.connect(g)
+    g.connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.14)
+  },
+
+  clockTick(tick: boolean = true, vol: number = 0.08): void {
+    if (!this.ctx || !this.master || !this._gate('clockTick', 0.45)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(tick ? 1750 : 1350, t0)
+    const g = ctx.createGain()
+    const v = Math.min(0.15, Math.max(0.01, vol))
+    g.gain.setValueAtTime(v * 0.6, t0)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.02)
+    osc.connect(g)
+    g.connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.025)
+  },
+
+  _initPurrBuffer(): void {
+    if (!this.ctx) return
+    const sampleRate = this.ctx.sampleRate
+    const duration = 2.2 // 2.2 с — полный естественный дыхательный цикл кошки
+    const totalSamples = Math.floor(sampleRate * duration)
+    const buf = this.ctx.createBuffer(1, totalSamples, sampleRate)
+    const data = buf.getChannelData(0)
+
+    let b0 = 0, b1 = 0, b2 = 0
+
+    for (let i = 0; i < totalSamples; i++) {
+      const t = i / sampleRate
+
+      // Двухфазный цикл кошачьего дыхания (вдох 0..0.95с, микро-пауза 0.95..1.05с, выдох 1.05..2.2с)
+      let breathEnv = 0
+      let pulseRate = 24.5
+      let formantFreq = 82
+
+      if (t < 0.95) {
+        // Фаза 1: Вдох (легкий трепет гортани ~25.8 Гц, форманта 94 Гц)
+        const u = t / 0.95
+        breathEnv = Math.sin(u * Math.PI) * 0.75
+        pulseRate = 25.8
+        formantFreq = 94
+      } else if (t < 1.05) {
+        // Мягкий переход дыхания
+        breathEnv = 0.08
+        pulseRate = 24.0
+        formantFreq = 86
+      } else {
+        // Фаза 2: Выдох (глубокий, теплый рокот грудной клетки ~23.4 Гц, форманта 76 Гц)
+        const u = (t - 1.05) / 1.15
+        breathEnv = Math.sin(u * Math.PI) * 1.0
+        pulseRate = 23.4
+        formantFreq = 76
+      }
+
+      // Период и фаза одиночного импульса голосовых складок
+      const pulsePeriod = 1 / pulseRate
+      const pulsePhase = (t % pulsePeriod) / pulsePeriod
+
+      // Огибающая импульса: быстрое нарастание (~3мс), спад (~14мс), затем пауза до следующего импульса
+      let glottalEnv = 0
+      if (pulsePhase < 0.42) {
+        const pNorm = pulsePhase / 0.42
+        glottalEnv = Math.sin(pNorm * Math.PI) * Math.exp(-pNorm * 2.2)
+      }
+
+      // Акустический резонанс грудной клетки: затухающие колебания мягких тканей
+      const pulseT = pulsePhase * pulsePeriod
+      const chestResonance = Math.sin(2 * Math.PI * formantFreq * pulseT) * Math.exp(-pulseT * 88)
+      const throatOvertone = Math.sin(2 * Math.PI * (formantFreq * 2.05) * pulseT) * 0.28 * Math.exp(-pulseT * 125)
+
+      // Мягкий шум трения воздуха в гортани (низкочастотный броуновский шум)
+      const white = Math.random() * 2 - 1
+      b0 = 0.93 * b0 + white * 0.07
+      b1 = 0.91 * b1 + b0 * 0.09
+      const filteredNoise = b1 * 1.6
+
+      // Суммирование импульса складок с дыхательным шумом
+      const pulseAudio = (chestResonance + throatOvertone + filteredNoise * 0.48) * glottalEnv
+
+      // Непрерывное фоновое тепло дыхания
+      b2 = 0.97 * b2 + white * 0.03
+      const ambientRumble = b2 * 0.08
+
+      data[i] = (pulseAudio * 1.5 + ambientRumble) * breathEnv
+    }
+
+    // Мягкое сглаживание краев от щелчков
+    const fade = Math.floor(sampleRate * 0.05)
+    for (let i = 0; i < fade; i++) {
+      data[i] *= (i / fade)
+      data[totalSamples - 1 - i] *= (i / fade)
+    }
+
+    // Нормализация (мягкий пик 0.50)
+    let peak = 0
+    for (let i = 0; i < totalSamples; i++) {
+      if (Math.abs(data[i]) > peak) peak = Math.abs(data[i])
+    }
+    if (peak > 0) {
+      const scale = 0.50 / peak
+      for (let i = 0; i < totalSamples; i++) data[i] *= scale
+    }
+
+    this.purrBuf = buf
+  },
+
+  purr(vol: number = 0.15): void {
+    if (!this.ctx || !this.master) return
+    this.resume()
+    if (!this.purrBuf) this._initPurrBuffer()
+    if (!this.purrBuf) return
+
+    // Не запускаем повторно поверх еще звучащего цикла
+    if (this._purrSource && !this._gate('purrBreath', 2.05)) return
+
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const src = ctx.createBufferSource()
+    src.buffer = this.purrBuf
+
+    const g = ctx.createGain()
+    const v = Math.min(0.35, Math.max(0.02, vol))
+    g.gain.setValueAtTime(v, t0)
+
+    src.connect(g)
+    g.connect(this.master)
+
+    src.start(t0)
+    this._purrSource = src
+    this._purrGain = g
+  },
+
+  stopPurr(): void {
+    if (!this.ctx || !this._purrGain) return
+    const t0 = this.ctx.currentTime
+    try {
+      this._purrGain.gain.setValueAtTime(this._purrGain.gain.value, t0)
+      this._purrGain.gain.linearRampToValueAtTime(0.001, t0 + 0.22)
+      if (this._purrSource) {
+        this._purrSource.stop(t0 + 0.23)
+      }
+    } catch {}
+    this._purrSource = null
+    this._purrGain = null
+  },
+
+  squeak(vol: number = 0.18): void {
+    if (!this.ctx || !this.master || !this._gate('squeak', 0.2)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(950, t0)
+    osc.frequency.exponentialRampToValueAtTime(2400, t0 + 0.06)
+    osc.frequency.exponentialRampToValueAtTime(1200, t0 + 0.13)
+    const g = ctx.createGain()
+    const v = Math.min(0.25, Math.max(0.02, vol))
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14)
+    osc.connect(g)
+    g.connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.15)
+  },
+
+  softPuff(vol: number = 0.15): void {
+    if (!this.ctx || !this.master || !this._gate('softPuff', 0.2)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    try {
+      const noise = this._noise(0.6)
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = 160
+      const g = ctx.createGain()
+      const v = Math.min(0.25, Math.max(0.02, vol))
+      g.gain.setValueAtTime(v, t0)
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16)
+      noise.connect(filter)
+      filter.connect(g)
+      g.connect(this.master)
+      noise.start(t0)
+      noise.stop(t0 + 0.18)
+    } catch (e) {}
+  },
+
+  metallicClang(vol: number = 0.16): void {
+    if (!this.ctx || !this.master || !this._gate('metallicClang', 0.2)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.25, Math.max(0.02, vol))
+    ;[480, 735, 1220].forEach((f, idx) => {
+      const o = ctx.createOscillator()
+      o.type = idx === 0 ? 'sine' : 'triangle'
+      o.frequency.value = f
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(v * (idx === 0 ? 0.7 : 0.35), t0)
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + (idx === 0 ? 0.35 : 0.2))
+      o.connect(g)
+      g.connect(this.master!)
+      o.start(t0)
+      o.stop(t0 + 0.38)
+    })
+  },
+
+  plasticClack(vol: number = 0.14): void {
+    if (!this.ctx || !this.master || !this._gate('plasticClack', 0.15)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    try {
+      const noise = this._noise(1.4)
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.value = 1250
+      filter.Q.value = 2.5
+      const g = ctx.createGain()
+      const v = Math.min(0.25, Math.max(0.02, vol))
+      g.gain.setValueAtTime(v, t0)
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.04)
+      noise.connect(filter)
+      filter.connect(g)
+      g.connect(this.master)
+      noise.start(t0)
+      noise.stop(t0 + 0.05)
+    } catch (e) {}
+  },
+
+  phoneBeep(vol: number = 0.15): void {
+    if (!this.ctx || !this.master || !this._gate('phoneBeep', 0.25)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.22, Math.max(0.02, vol))
+    ;[697, 1209].forEach(f => {
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      o.frequency.value = f
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0.001, t0)
+      g.gain.exponentialRampToValueAtTime(v * 0.5, t0 + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08)
+      o.connect(g)
+      g.connect(this.master!)
+      o.start(t0)
+      o.stop(t0 + 0.09)
+    })
   }
 }
 

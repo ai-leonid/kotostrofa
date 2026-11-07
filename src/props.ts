@@ -51,6 +51,7 @@ export function buildProps(scene: any, world: any, apt: any) {
       hang: !!opts.hang, released: false,
       room: levels.roomOf(x, z),
       initialPosition: new CANNON.Vec3(x, y, z),
+      initialQuaternion: new CANNON.Quaternion().copy(body.quaternion),
       keepMeshOnBreak: !!opts.keepMeshOnBreak
     };
     body.addEventListener("collide", function (e: any) {
@@ -1029,7 +1030,9 @@ export function buildProps(scene: any, world: any, apt: any) {
       name: name, value: value, mesh: g, body: body, mass: 0.4,
       breakable: false, breakVel: 99, shardColor: "#6b4a33", broken: false,
       scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false,
-      room: KOTO.levels.roomOf(x, z)
+      room: KOTO.levels.roomOf(x, z),
+      initialPosition: new CANNON.Vec3(x, y, z),
+      initialQuaternion: new CANNON.Quaternion().copy(body.quaternion)
     };
     body.addEventListener("collide", function (e) {
       if (!e.contact || prop.broken || !prop.released) return;
@@ -1045,34 +1048,129 @@ export function buildProps(scene: any, world: any, apt: any) {
   hangPicture("картину", 700, 0.55, 0.75, -5.4, 1.6, 4.46, 11);
   hangPicture("картину", 700, 0.65, 0.5, -3.6, 1.5, 4.46, 22);
 
-  function hangCurtain(name, value, cx, y, fz) {
-    const w = 1.6, h = 1.3;
+  function hangCurtain(name: string, value: number, cx: number, rodY: number, fz: number) {
+    const w = 1.6;
     const g = new THREE.Group();
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, w + 0.6, 8), std("#6b4a33", 0.6));
+    const clothMat = std("#7a2b38", 0.95);
+    const rodMat = std("#6b4a33", 0.6);
+
+    // 1. Деревянная перекладина карниза (толщина 4.4 см, длина 2.05 м)
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, w + 0.45, 12), rodMat);
     rod.rotation.z = Math.PI / 2;
+    rod.position.set(0, 0, 0);
     rod.castShadow = true;
     g.add(rod);
+
+    // Декоративные точеные набалдашники на концах карниза
     [-1, 1].forEach(function (s) {
-      const cur = new THREE.Mesh(new THREE.BoxGeometry(0.24, h + 0.5, 0.08), std("#7a3a4a", 0.95));
-      cur.position.set(s * (w / 2 + 0.16), -h / 2 - 0.15, 0);
-      cur.castShadow = true;
-      g.add(cur);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), std("#4a2e1b", 0.5));
+      finial.position.set(s * ((w + 0.45) / 2 + 0.03), 0, 0);
+      g.add(finial);
     });
+
+    // 2. Висящие на окне вертикальные шторы с красивыми складками драпировки
+    const hangingG = new THREE.Group();
+    [-1, 1].forEach(function (s) {
+      const panelG = new THREE.Group();
+      panelG.position.set(s * (w / 2 + 0.14), 0, 0);
+      // 3 волнообразные вертикальные складки для объема
+      [-0.08, 0, 0.08].forEach(function (fx, fIdx) {
+        const fold = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.65, 0.06), clothMat);
+        fold.position.set(fx, -0.825, fIdx % 2 === 0 ? 0.012 : -0.012);
+        fold.castShadow = true;
+        panelG.add(fold);
+
+        // Латунное кольцо подвеса к карнизу
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.005, 8, 16), std("#d4af37", 0.3, 0.8));
+        ring.position.set(fx, 0, 0);
+        panelG.add(ring);
+      });
+      hangingG.add(panelG);
+    });
+    g.add(hangingG);
     scene.add(g);
 
-    const body = new CANNON.Body({ mass: 3.5, material: M.prop, type: CANNON.Body.KINEMATIC });
-    body.addShape(boxShape((w + 0.6) / 2, (h + 0.5) / 2, 0.08));
-    body.position.set(cx, y, fz);
+    // 3. Мягкая смятая ткань на полу при падении (НЕ жесткая П-образная конструкция!)
+    const crumpledG = new THREE.Group();
+    [-1, 1].forEach(function (s) {
+      const pileG = new THREE.Group();
+      pileG.position.set(s * (w / 2 + 0.14), 0, 0);
+
+      // Нижний расстелившийся слой упавшей бархатной ткани
+      const baseCloth = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 0.024, 16), clothMat);
+      baseCloth.position.set(0, 0.012, 0);
+      baseCloth.scale.set(1.1, 1, 0.85);
+      baseCloth.receiveShadow = true;
+      pileG.add(baseCloth);
+
+      // Многослойные мягкие складки, изгибы и волны смятой материи
+      const fold1 = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.046, 0.52, 12), clothMat);
+      fold1.rotation.z = Math.PI / 2;
+      fold1.rotation.y = 0.28;
+      fold1.position.set(0, 0.035, 0.02);
+      fold1.castShadow = true;
+      pileG.add(fold1);
+
+      const fold2 = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.44, 12), clothMat);
+      fold2.rotation.z = Math.PI / 2;
+      fold2.rotation.y = -0.42;
+      fold2.position.set(0.04, 0.042, -0.05);
+      fold2.castShadow = true;
+      pileG.add(fold2);
+
+      const fold3 = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.026, 0.34), clothMat);
+      fold3.rotation.y = 0.15;
+      fold3.position.set(-0.02, 0.026, 0.03);
+      fold3.castShadow = true;
+      pileG.add(fold3);
+
+      const fold4 = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.36, 10), clothMat);
+      fold4.rotation.z = Math.PI / 2;
+      fold4.rotation.y = 0.65;
+      fold4.position.set(-0.05, 0.052, -0.02);
+      pileG.add(fold4);
+
+      crumpledG.add(pileG);
+    });
+
+    // Соединительная полоса ткани между шторами
+    const centerCloth = new THREE.Mesh(new THREE.BoxGeometry(w - 0.2, 0.018, 0.22), clothMat);
+    centerCloth.position.set(0, 0.01, 0);
+    crumpledG.add(centerCloth);
+
+    crumpledG.visible = false;
+    scene.add(crumpledG);
+
+    // 4. Физическое тело ТОЛЬКО для деревянной перекладины (карниза)
+    // Толщина 7 см, длина 2.05 м, центр на rodY (2.44 м). У ткани НЕТ жесткого каркаса ходулей!
+    const body = new CANNON.Body({ mass: 2.4, material: M.prop, type: CANNON.Body.KINEMATIC });
+    body.addShape(boxShape((w + 0.45) / 2, 0.035, 0.035));
+    body.position.set(cx, rodY, fz);
     world.addBody(body);
 
     const prop = {
-      name: name, value: value, mesh: g, body: body, mass: 3.5,
+      name: name, value: value, mesh: g, body: body, mass: 2.4,
       breakable: false, breakVel: 99, shardColor: "#6b4a33", broken: false,
       scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false,
-      room: KOTO.levels.roomOf(cx, fz)
+      room: KOTO.levels.roomOf(cx, fz),
+      initialPosition: new CANNON.Vec3(cx, rodY, fz),
+      initialQuaternion: new CANNON.Quaternion().copy(body.quaternion),
+      hangingG: hangingG,
+      crumpledG: crumpledG
     };
     body.addEventListener("collide", function (e) {
-      if (!e.contact || prop.broken || !prop.released) return;
+      if (!e.contact || prop.broken) return;
+      if (!prop.released) {
+        const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+        const other = e.body;
+        // Если по висящему карнизу попал предмет (лассо) или прыгнул кот
+        if (v > 1.2 || (other && other === (KOTO.cat && KOTO.cat.body))) {
+          if (KOTO.game && (KOTO.game as any).releaseHang) {
+            (KOTO.game as any).releaseHang(prop);
+          }
+        }
+        return;
+      }
       const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
       const other = e.body;
       const isStrike = !!(other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop);
@@ -1082,18 +1180,184 @@ export function buildProps(scene: any, world: any, apt: any) {
     hangProps.push(prop);
     return prop;
   }
+  // Интерактивные гардины на обоих окнах в гостиной (левое и правое)
   hangCurtain("карниз со шторами", 3800, -5.4, 2.44, -4.33);
+  hangCurtain("карниз со шторами", 3800, -3.4, 2.44, -4.33);
 
-  const clockG = new THREE.Group();
-  clockG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.045, 20), std("#f2f2ee", 0.4)));
-  const hand1 = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.1, 0.008), std("#2a2d33", 0.4));
-  hand1.position.set(0, 0.02, -0.026);
-  clockG.add(hand1);
-  const hand2 = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.07, 0.008), std("#c94a4a", 0.4));
-  hand2.rotation.z = 1.2;
-  hand2.position.set(0.01, 0.01, -0.026);
-  clockG.add(hand2);
-  hangPicture("часы", 450, 0.34, 0.34, -4.5, 2.05, 4.46, 33).mesh.children[0].rotation.x = Math.PI / 2;
+  // ---------- КРАСИВЫЕ НАСТЕННЫЕ ЧАСЫ В ГОСТИНЫХ ----------
+  function hangClock(name: string, value: number, cx: number, cy: number, cz: number) {
+    const r = 0.22;
+    const g = new THREE.Group();
+
+    // 1. Корпус из темного благородного ореха
+    const frameMat = std("#3e2617", 0.65, 0.25);
+    // Внешняя цилиндрическая обечайка (hollow / openEnded: true — без торцевых крышек!)
+    const outerRim = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.032, r + 0.032, 0.05, 48, 1, true), frameMat);
+    outerRim.rotation.x = Math.PI / 2;
+    outerRim.castShadow = true;
+    g.add(outerRim);
+
+    // Задняя стенка корпуса (прилегает к стене z = +0.024)
+    const backPlate = new THREE.Mesh(new THREE.CircleGeometry(r + 0.032, 48), frameMat);
+    backPlate.position.z = 0.024;
+    g.add(backPlate);
+
+    // Передняя деревянная фаска корпуса (кольцо)
+    const frontWoodBevel = new THREE.Mesh(new THREE.RingGeometry(r + 0.012, r + 0.033, 48), frameMat);
+    frontWoodBevel.rotation.y = Math.PI;
+    frontWoodBevel.position.z = -0.0245;
+    g.add(frontWoodBevel);
+
+    // 2. Внутренний полированный латунный обод
+    const brassMat = std("#d4af37", 0.25, 0.9);
+    // Внутренняя латунная гильза (hollow / openEnded: true)
+    const innerBrassSleeve = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.012, 0.052, 48, 1, true), brassMat);
+    innerBrassSleeve.rotation.x = Math.PI / 2;
+    g.add(innerBrassSleeve);
+
+    // Декоративный передний латунный безель (полый RingGeometry — в центре ПУСТО, нет z-fighting с циферблатом!)
+    const frontBrassRing = new THREE.Mesh(new THREE.RingGeometry(r - 0.002, r + 0.013, 48), brassMat);
+    frontBrassRing.rotation.y = Math.PI;
+    frontBrassRing.position.z = -0.0255;
+    g.add(frontBrassRing);
+
+    // 3. Процедурный детализированный циферблат часов (Canvas 512x512)
+    const dialCanvas = document.createElement('canvas');
+    dialCanvas.width = 512;
+    dialCanvas.height = 512;
+    const dialCtx = dialCanvas.getContext('2d')!;
+    (function (ctx, s) {
+      // Сплошной чистый фон слоновой кости (без прозрачных углов)
+      ctx.fillStyle = "#faf6ed";
+      ctx.fillRect(0, 0, s, s);
+
+      // Внутренний тонкий золотой ободок циферблата
+      ctx.strokeStyle = "#c8a452";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(s / 2, s / 2, s / 2 - 20, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 60 минутных меток и 12 часовых делений
+      for (let i = 0; i < 60; i++) {
+        const angle = (i * Math.PI) / 30;
+        const isHour = i % 5 === 0;
+        const r1 = isHour ? s / 2 - 58 : s / 2 - 40;
+        const r2 = s / 2 - 26;
+        ctx.strokeStyle = isHour ? "#1c1f24" : "#8a8e96";
+        ctx.lineWidth = isHour ? 6 : 2.5;
+        ctx.beginPath();
+        ctx.moveTo(s / 2 + Math.sin(angle) * r1, s / 2 - Math.cos(angle) * r1);
+        ctx.lineTo(s / 2 + Math.sin(angle) * r2, s / 2 - Math.cos(angle) * r2);
+        ctx.stroke();
+      }
+
+      // Главные арабские цифры 12, 3, 6, 9
+      ctx.fillStyle = "#1c1f24";
+      ctx.font = "bold 52px 'Georgia', serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("12", s / 2, 88);
+      ctx.fillText("6", s / 2, s - 88);
+      ctx.fillText("3", s - 88, s / 2);
+      ctx.fillText("9", 88, s / 2);
+
+      // Второстепенные цифры
+      ctx.font = "bold 34px 'Georgia', serif";
+      const hours = [
+        [1, 1], [2, 2], [4, 4], [5, 5],
+        [7, 7], [8, 8], [10, 10], [11, 11]
+      ];
+      hours.forEach(([h]) => {
+        const a = (h * Math.PI) / 6;
+        ctx.fillText(h.toString(), s / 2 + Math.sin(a) * (s / 2 - 96), s / 2 - Math.cos(a) * (s / 2 - 96));
+      });
+
+      // Логотип часового бренда
+      ctx.font = "bold 19px 'Georgia', serif";
+      ctx.fillStyle = "#4a3c2c";
+      ctx.fillText("КОТОСТРОФА", s / 2, s / 2 - 50);
+      ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
+      ctx.fillStyle = "#8a7e70";
+      ctx.fillText("КВАРЦ • 1984", s / 2, s / 2 + 55);
+    })(dialCtx, 512);
+
+    const dialTex = new THREE.CanvasTexture(dialCanvas);
+    dialTex.colorSpace = THREE.SRGBColorSpace;
+
+    // Циферблат утоплен на z = -0.019 (на 6.5 мм глубже переднего латунного обода -0.0255)
+    const dialMesh = new THREE.Mesh(
+      new THREE.CircleGeometry(r, 48),
+      new THREE.MeshStandardMaterial({ map: dialTex, roughness: 0.65 })
+    );
+    dialMesh.rotation.y = Math.PI;
+    dialMesh.position.z = -0.019;
+    g.add(dialMesh);
+
+    // 4. Объемные 3D-стрелки с четким разнесением по Z
+    const handMat = std("#1c1e22", 0.4);
+    const secMat = std("#d62828", 0.35);
+
+    // Часовая стрелка (на ~10 часов) на z = -0.022
+    const hourHand = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.10, 0.004), handMat);
+    hourHand.position.set(-0.035, 0.025, -0.022);
+    hourHand.rotation.z = 0.9;
+    g.add(hourHand);
+
+    // Минутная стрелка (на ~2 часа) на z = -0.025
+    const minHand = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.15, 0.004), handMat);
+    minHand.position.set(0.05, 0.04, -0.025);
+    minHand.rotation.z = -0.85;
+    g.add(minHand);
+
+    // Секундная тонкая красная стрелка (на ~4 часа) на z = -0.0275
+    const secHand = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.17, 0.003), secMat);
+    secHand.position.set(0.045, -0.035, -0.0275);
+    secHand.rotation.z = -2.2;
+    g.add(secHand);
+
+    // Центральная латунная головка на z = -0.0295
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.006, 16), brassMat);
+    cap.rotation.x = Math.PI / 2;
+    cap.position.z = -0.0295;
+    g.add(cap);
+
+    // 5. Защитное стекло на z = -0.032 (впереди всех стрелок, depthWrite: false исключает артефакты)
+    const glass = new THREE.Mesh(
+      new THREE.CircleGeometry(r + 0.005, 48),
+      new THREE.MeshStandardMaterial({ color: "#ffffff", transparent: true, opacity: 0.14, roughness: 0.05, depthWrite: false })
+    );
+    glass.rotation.y = Math.PI;
+    glass.position.z = -0.032;
+    g.add(glass);
+
+    const body = new CANNON.Body({ mass: 0.4, material: M.prop, type: CANNON.Body.KINEMATIC });
+    body.addShape(boxShape(r, r, 0.025));
+    body.position.set(cx, cy, cz);
+    world.addBody(body);
+
+    const prop = {
+      name: name, value: value, mesh: g, body: body, mass: 0.4,
+      breakable: false, breakVel: 99, shardColor: "#3e2617", broken: false,
+      scoreCd: 0, onBreak: null, onScore: null, hang: true, released: false,
+      room: KOTO.levels.roomOf(cx, cz),
+      initialPosition: new CANNON.Vec3(cx, cy, cz),
+      initialQuaternion: new CANNON.Quaternion().copy(body.quaternion)
+    };
+    body.addEventListener("collide", function (e) {
+      if (!e.contact || prop.broken || !prop.released) return;
+      const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      const other = e.body;
+      const isStrike = !!(other && other !== (KOTO.cat && KOTO.cat.body) && other.material === M.prop);
+      if (KOTO.game) KOTO.game.onPropImpact(prop, v, isStrike);
+    });
+
+    scene.add(g);
+    props.push(prop);
+    hangProps.push(prop);
+    return prop;
+  }
+  hangClock("часы", 450, -4.5, 2.05, 4.46);
 
   // ---------- КУХНЯ ----------
   const cy = L.counterTopY;
@@ -1141,34 +1405,119 @@ export function buildProps(scene: any, world: any, apt: any) {
 
   register("вино", 900, meshBottle("#2a4a2e"), cylShapeY(0.05, 0.3), 3.8, cy + 0.15, -4.2, { mass: 0.8, breakable: true, breakVel: 2.0, shardColor: "#2a4a2e" });
 
-  // АКВАРИУМ (квест)
+  // ---------- БОЛЬШОЙ АКВАРИУМ С РЫБКОЙ (КВЕСТ) ----------
   const bowlG = new THREE.Group();
-  const glass = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshStandardMaterial({ color: "#bfe3ff", roughness: 0.05, transparent: true, opacity: 0.3 }));
+  const aquaR = 0.28;
+  
+  // 1. Прозрачная стеклянная сферическая колба аквариума (увеличена почти в 2 раза)
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: "#d2efff",
+    roughness: 0.04,
+    transparent: true,
+    opacity: 0.32,
+    metalness: 0.1
+  });
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(aquaR, 24, 18), glassMat);
   bowlG.add(glass);
-  const waterIn = new THREE.Mesh(new THREE.SphereGeometry(0.148, 14, 10), new THREE.MeshStandardMaterial({ color: "#4a90d8", roughness: 0.1, transparent: true, opacity: 0.65 }));
-  waterIn.position.y = -0.02;
+
+  // Стеклянный воротник/ободок верхнего отверстия
+  const rimMat = new THREE.MeshStandardMaterial({ color: "#e8f7ff", roughness: 0.08, transparent: true, opacity: 0.45 });
+  const topRim = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.015, 12, 28), rimMat);
+  topRim.rotation.x = Math.PI / 2;
+  topRim.position.y = 0.21;
+  bowlG.add(topRim);
+
+  // 2. Дно: песчано-галечный грунт
+  const sandMat = std("#c89a58", 0.95);
+  const sandBed = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.15, 0.06, 20), sandMat);
+  sandBed.position.y = -0.21;
+  bowlG.add(sandBed);
+
+  // Разноцветные круглые камушки на дне
+  const pebbleColors = ["#824832", "#4a6878", "#547852", "#98683a", "#3b4856"];
+  pebbleColors.forEach((col, idx) => {
+    const a = (idx * Math.PI * 2) / pebbleColors.length;
+    const rDist = 0.08 + (idx % 2) * 0.06;
+    const pebble = new THREE.Mesh(
+      new THREE.SphereGeometry(0.024 + (idx % 3) * 0.008, 12, 8),
+      std(col, 0.6)
+    );
+    pebble.position.set(Math.cos(a) * rDist, -0.19, Math.sin(a) * rDist);
+    pebble.scale.y = 0.6;
+    bowlG.add(pebble);
+  });
+
+  // 3. Зеленые подводные водоросли
+  const plantMat = std("#2e9e44", 0.85);
+  [-0.10, 0.11, -0.04].forEach((px, i) => {
+    const pz = (i === 1 ? -0.06 : 0.07);
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.24 + i * 0.05, 8), plantMat);
+    stalk.position.set(px, -0.08 + i * 0.02, pz);
+    stalk.rotation.z = (i - 1) * 0.15;
+    bowlG.add(stalk);
+  });
+
+  // 4. Толща бирюзовой воды
+  const waterInMat = new THREE.MeshStandardMaterial({
+    color: "#2898ec",
+    roughness: 0.08,
+    transparent: true,
+    opacity: 0.58
+  });
+  const waterIn = new THREE.Mesh(new THREE.SphereGeometry(aquaR - 0.025, 20, 16), waterInMat);
+  waterIn.position.y = -0.025;
   bowlG.add(waterIn);
-  const fishInMat = new THREE.MeshStandardMaterial({ color: "#f08c2e", emissive: "#b04a12", emissiveIntensity: 0.55, roughness: 0.5 });
-  const fishIn = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.055), fishInMat);
-  fishIn.position.y = -0.03;
-  bowlG.add(fishIn);
+
+  // 5. Золотая рыбка внутри (с хвостом и плавниками)
+  const fishG = new THREE.Group();
+  const fishInMat = new THREE.MeshStandardMaterial({
+    color: "#ff6f12",
+    emissive: "#b03e00",
+    emissiveIntensity: 0.6,
+    roughness: 0.4
+  });
+  const fishBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.065, 0.048), fishInMat);
+  fishG.add(fishBody);
+  const fishTail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.014), fishInMat);
+  fishTail.position.set(-0.08, 0.01, 0);
+  fishTail.rotation.z = 0.3;
+  fishG.add(fishTail);
+  const fishEye = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), new THREE.MeshBasicMaterial({ color: "#111111" }));
+  fishEye.position.set(0.045, 0.015, 0.025);
+  fishG.add(fishEye);
+  fishG.position.set(0.02, -0.02, 0);
+  bowlG.add(fishG);
+
+  // 6. Подводные пузырьки воздуха
+  const bubbleMat = new THREE.MeshBasicMaterial({ color: "#b8f4ff", transparent: true, opacity: 0.75 });
+  [[0.06, -0.10, 0.04], [0.08, 0.02, 0.05], [0.05, 0.12, 0.03], [-0.07, 0.05, -0.05]].forEach(([bx, by, bz]) => {
+    const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), bubbleMat);
+    bubble.position.set(bx, by, bz);
+    bowlG.add(bubble);
+  });
+
+  // 7. Мягкая подсветка аквариума
+  const aquaGlow = new THREE.PointLight('#5ce1e6', 0.85, 3.2, 1.8);
+  aquaGlow.position.set(0, 0.02, 0);
+  bowlG.add(aquaGlow);
+
   const fp = L.fishbowlPos;
-  register("аквариум", 2500, bowlG, new CANNON.Sphere(0.16), fp.x, fp.y, fp.z, {
-    mass: 0.6, breakable: true, breakVel: 1.3, shardColor: "#bfe3ff",
+  register("аквариум", 2500, bowlG, new CANNON.Sphere(aquaR), fp.x, fp.y, fp.z, {
+    mass: 1.4, breakable: true, breakVel: 1.3, shardColor: "#bfe3ff",
     onBreak: function (game, prop) {
       const p = prop.body.position;
       AudioSys.splash();
       // GR-02: Вспышка синего освещения от разбитого аквариума
-      const aquaLight = new THREE.PointLight('#2de2e6', 1.8, 6, 2);
+      const aquaLight = new THREE.PointLight('#2de2e6', 2.2, 8, 2);
       aquaLight.position.set(p.x, p.y + 0.2, p.z);
       scene.add(aquaLight);
       transients.push({
-        mesh: aquaLight as any, body: null, t: 0, life: 0.6,
+        mesh: aquaLight as any, body: null, t: 0, life: 0.7,
         onUpdate: function (tr: any) {
-          aquaLight.intensity = Math.max(0, 1.8 * (1 - tr.t / 0.6));
+          aquaLight.intensity = Math.max(0, 2.2 * (1 - tr.t / 0.7));
         }
       });
-      spawnWaterDecal(p.x, p.z, 0.42);
+      spawnWaterDecal(p.x, p.z, 0.75);
       const spot = findOpenFloorSpot(p.x, p.z);
       spawnFish(spot.x, 0.1, spot.z);
       notify("water", p.x, p.z, prop);
@@ -1198,6 +1547,8 @@ export function buildProps(scene: any, world: any, apt: any) {
   });
   scene.add(fridgeG);
 
+  const spawnedGroceries: Prop[] = [];
+
   function spawnFridgeGroceries() {
     for (let i = 0; i < 2; i++) {
       const milkG = new THREE.Group();
@@ -1213,6 +1564,7 @@ export function buildProps(scene: any, world: any, apt: any) {
       );
       milk.body.velocity.set(1.8 + Math.random() * 1.2, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 1.6);
       milk.body.angularVelocity.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+      spawnedGroceries.push(milk);
     }
     const sausG = new THREE.Group();
     const sausM = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.32, 24), std("#8a3838", 0.7));
@@ -1221,18 +1573,21 @@ export function buildProps(scene: any, world: any, apt: any) {
     const saus = register("палку колбасы", 380, sausG, cylShapeY(0.042, 0.32),
       -0.45, 0.9, -3.4, { mass: 0.5, breakable: false });
     saus.body.velocity.set(2.2, 0.8, -0.4);
+    spawnedGroceries.push(saus);
 
     const cheeseG = new THREE.Group();
     cheeseG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.09, 24), std("#f2c94c", 0.6)));
     const cheese = register("головку сыра", 420, cheeseG, cylShapeY(0.12, 0.09),
       -0.45, 0.7, -3.6, { mass: 0.6, breakable: false });
     cheese.body.velocity.set(2.0, 0.7, 0.4);
+    spawnedGroceries.push(cheese);
 
     const jarG = new THREE.Group();
     jarG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 20), new THREE.MeshStandardMaterial({ color: "#2d5a27", transparent: true, opacity: 0.7, roughness: 0.15 })));
     const jar = register("банку солений", 280, jarG, cylShapeY(0.07, 0.18),
       -0.45, 1.1, -3.5, { mass: 0.7, breakable: true, breakVel: 1.8, shardColor: "#3a6a30" });
     jar.body.velocity.set(2.1, 0.9, -0.2);
+    spawnedGroceries.push(jar);
 
     const borschG = new THREE.Group();
     borschG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.19, 24), std("#882222", 0.4, 0.5)));
@@ -1247,6 +1602,7 @@ export function buildProps(scene: any, world: any, apt: any) {
         }
       });
     pot.body.velocity.set(2.4, 0.5, 0.1);
+    spawnedGroceries.push(pot);
   }
 
   const fridge = {
@@ -1697,10 +2053,12 @@ export function buildProps(scene: any, world: any, apt: any) {
   const hpG = new THREE.Group();
   hpG.position.set(0, 0.36, 0);
 
-  const hpBg = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.048, 0.01), new THREE.MeshBasicMaterial({ color: "#0a0c10", transparent: true, opacity: 0.85, depthTest: false }));
+  const hpBg = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.048, 0.01), new THREE.MeshBasicMaterial({ color: "#0a0c10", transparent: true, opacity: 0.85, depthTest: true }));
+  hpBg.name = "vacHpBg";
   hpG.add(hpBg);
 
-  const hpFill = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.034, 0.014), new THREE.MeshBasicMaterial({ color: "#00ff66", depthTest: false }));
+  const hpFill = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.034, 0.014), new THREE.MeshBasicMaterial({ color: "#00ff66", depthTest: true }));
+  hpFill.name = "vacHpFill";
   hpG.add(hpFill);
 
   // Текстовая плашка со здоровьем
@@ -1708,7 +2066,8 @@ export function buildProps(scene: any, world: any, apt: any) {
   hpCanvas.width = 256; hpCanvas.height = 64;
   const hpCtx = hpCanvas.getContext("2d");
   const hpTex = new THREE.CanvasTexture(hpCanvas);
-  const hpLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: hpTex, transparent: true, depthTest: false }));
+  const hpLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: hpTex, transparent: true, depthTest: true }));
+  hpLabel.name = "vacHpLabel";
   hpLabel.position.y = 0.07;
   hpLabel.scale.set(0.55, 0.14, 1);
   hpG.add(hpLabel);
@@ -1734,7 +2093,8 @@ export function buildProps(scene: any, world: any, apt: any) {
   bCtx.shadowColor = "rgba(255, 30, 0, 0.85)"; bCtx.shadowBlur = 10;
   bCtx.fillText("⚠️ СЛОМАН", 128, 32);
   const brokenTex = new THREE.CanvasTexture(brokenCanvas);
-  const brokenBadge = new THREE.Sprite(new THREE.SpriteMaterial({ map: brokenTex, transparent: true, depthTest: false }));
+  const brokenBadge = new THREE.Sprite(new THREE.SpriteMaterial({ map: brokenTex, transparent: true, depthTest: true }));
+  brokenBadge.name = "vacBrokenBadge";
   brokenBadge.position.y = 0.36;
   brokenBadge.scale.set(0.65, 0.16, 1);
   brokenBadge.visible = false;
@@ -1911,6 +2271,12 @@ export function buildProps(scene: any, world: any, apt: any) {
     }
 
     // 5. Крупные препятствия мебели
+    // Тумба под телевизор в гостиной: стоит на полу, пылесос не должен заезжать в текстуры!
+    if (newX >= -2.60 && newX <= -1.40 && newZ >= -0.12 && newZ <= 1.92) return false;
+    // Диван в гостиной: x [-6.95, -5.7], z [-0.7, 2.5]
+    if (newX <= -5.68 && newZ >= -0.7 && newZ <= 2.5) return false;
+    // Книжный шкаф у окна: x [-6.0, -3.0], z <= -3.7
+    if (newX >= -6.0 && newX <= -3.0 && newZ <= -3.7) return false;
     // Ванна в ванной: x [-0.2, 2.1], z [3.4, 4.5]
     if (newX >= -0.2 && newX <= 2.1 && newZ >= 3.4 && newZ <= 4.5) return false;
     // Кровать в спальне: x [9.2, 11.0], z [-4.4, -2.1]
@@ -1952,6 +2318,34 @@ export function buildProps(scene: any, world: any, apt: any) {
       fridge.openAngle += (fridge.targetAngle - fridge.openAngle) * Math.min(1, 8 * dt);
       fridge.doorGroup.rotation.y = -fridge.openAngle;
     }
+    // Анимация сминания ткани штор при падении (штора не стоит жесткой буквой П!)
+    hangProps.forEach(function (p: any) {
+      if (p.hangingG && p.crumpledG) {
+        if (p.released) {
+          const curY = p.body.position.y;
+          if (curY > 0.45) {
+            // В воздухе: ткань опадает и сминается по вертикали
+            const progress = Math.max(0, Math.min(1, (2.44 - curY) / 1.8));
+            p.hangingG.scale.y = Math.max(0.18, 1.0 - progress * 0.82);
+            p.hangingG.position.y = -(1.0 - p.hangingG.scale.y) * 0.5;
+            p.hangingG.visible = true;
+            p.crumpledG.visible = false;
+          } else {
+            // Упала на пол: шторы мягко смяты на полу, деревянный карниз лежит рядом
+            p.hangingG.visible = false;
+            p.crumpledG.visible = true;
+            p.crumpledG.position.set(p.body.position.x, 0.012, p.body.position.z);
+            const rot = new THREE.Euler().setFromQuaternion(p.mesh.quaternion);
+            p.crumpledG.rotation.y = rot.y;
+          }
+        } else {
+          p.hangingG.visible = true;
+          p.hangingG.scale.set(1, 1, 1);
+          p.hangingG.position.set(0, 0, 0);
+          p.crumpledG.visible = false;
+        }
+      }
+    });
     // Обновление Жорки-3000
     if (!vacuum.broken) {
       if (vacuum.stunTimer > 0) {
@@ -2102,6 +2496,69 @@ export function buildProps(scene: any, world: any, apt: any) {
     if (vacuum && vacuum.reset) {
       vacuum.reset();
     }
+
+    // 1. Удаление выпавших из холодильника продуктов
+    spawnedGroceries.forEach(g => {
+      if (g.body) world.removeBody(g.body);
+      if (g.mesh) scene.remove(g.mesh);
+      const idx = props.indexOf(g);
+      if (idx >= 0) props.splice(idx, 1);
+    });
+    spawnedGroceries.length = 0;
+
+    // 2. Сброс состояния холодильника
+    if (fridge) {
+      fridge.opened = false;
+      fridge.openAngle = 0;
+      fridge.targetAngle = 0;
+      if (fridge.doorGroup) fridge.doorGroup.rotation.y = 0;
+    }
+
+    // 3. Сброс трепыхающейся рыбки из аквариума
+    if (fish && fish.alive) {
+      if (fish.body) world.removeBody(fish.body);
+      if (fish.mesh) scene.remove(fish.mesh);
+      fish.body = null;
+      fish.mesh = null;
+      fish.alive = false;
+      fish.t = 0;
+    }
+
+    // 4. Сброс луж к исходной (в ванной)
+    puddles.length = 1;
+
+    // 5. Сброс кулдаунов когтеточек
+    scratchTargets.forEach(t => {
+      t.cd = 0;
+    });
+
+    // 6. Сброс всех настенных предметов (картины, карниз, часы)
+    hangProps.forEach(p => {
+      p.released = false;
+      p.scored = false;
+      p.broken = false;
+      p.body.type = CANNON.Body.KINEMATIC;
+      p.body.mass = (p.name.indexOf('карниз') >= 0 ? 2.4 : 0.4);
+      p.body.updateMassProperties();
+      if (p.initialPosition) p.body.position.copy(p.initialPosition);
+      if (p.initialQuaternion) p.body.quaternion.copy(p.initialQuaternion);
+      else p.body.quaternion.set(0, 0, 0, 1);
+      p.body.velocity.set(0, 0, 0);
+      p.body.angularVelocity.set(0, 0, 0);
+      p.body.sleep();
+      p.mesh.position.copy(p.body.position as any);
+      p.mesh.quaternion.copy(p.body.quaternion as any);
+      if ((p as any).hangingG) {
+        (p as any).hangingG.visible = true;
+        (p as any).hangingG.scale.set(1, 1, 1);
+        (p as any).hangingG.position.set(0, 0, 0);
+      }
+      if ((p as any).crumpledG) {
+        (p as any).crumpledG.visible = false;
+      }
+    });
+
+    // 7. Сброс всех интерактивных предметов
     props.forEach(p => {
       if (p.broken && !p.keepMeshOnBreak) {
         scene.add(p.mesh);
@@ -2113,16 +2570,34 @@ export function buildProps(scene: any, world: any, apt: any) {
       p._removing = false;
       p._isDailySpecial = false;
       p._isLassoThrown = false;
+      (p as any)._spilled = false;
+      (p as any)._scattered = false;
       const halo = p.mesh.getObjectByName('__daily_halo');
       if (halo) p.mesh.remove(halo);
+
+      if (p.hang) {
+        p.released = false;
+        p.scored = false;
+        p.body.type = CANNON.Body.KINEMATIC;
+        p.body.mass = (p.name.indexOf('карниз') >= 0 ? 3.5 : 0.4);
+        p.body.updateMassProperties();
+      }
+
       if (p.initialPosition) {
         p.body.position.copy(p.initialPosition);
       }
+      if (p.initialQuaternion) {
+        p.body.quaternion.copy(p.initialQuaternion);
+      } else {
+        p.body.quaternion.set(0, 0, 0, 1);
+      }
       p.body.velocity.set(0, 0, 0);
       p.body.angularVelocity.set(0, 0, 0);
-      p.body.quaternion.set(0, 0, 0, 1);
       p.body.sleep();
+      p.mesh.position.copy(p.body.position as any);
+      p.mesh.quaternion.copy(p.body.quaternion as any);
     });
+
     if (tvProp) (tvProp as any)._smokeTimer = 0;
     if (lampLight) lampLight.intensity = 0.65;
     if (bedLampLight) bedLampLight.intensity = 0.45;
@@ -2137,7 +2612,7 @@ export function buildProps(scene: any, world: any, apt: any) {
 
   return {
     props: props, hangProps: hangProps, transients: transients, scratchTargets: scratchTargets,
-    fish: fish, puddles: puddles, fx: fx, fridge: fridge, vacuum: vacuum,
+    fish: fish, puddles: puddles, fx: fx, fridge: fridge, vacuum: vacuum, canVacuumMove: canVacuumMove,
     update: update, removeProp: removeProp, resetProps: resetProps, spawnShards: spawnShards,
     spawnDust: spawnDust, spawnSparks: spawnSparks, spawnSplashes: spawnSplashes,
     spawnFeathers: spawnFeathers, spawnPawPrint: spawnPawPrint

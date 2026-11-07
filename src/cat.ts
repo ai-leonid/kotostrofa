@@ -29,7 +29,10 @@ export interface CatInstance {
   earBack?: number
   tailLag?: number[]
   blinkTimer?: number
+  blinkDuration?: number
   isBlinking?: boolean
+  eyes?: THREE.Mesh[]
+  glints?: THREE.Mesh[]
   landingBounce?: number
   wasGrounded?: boolean
   spawnX: number
@@ -72,6 +75,7 @@ export function createCat(
   headG.add(skull)
   const ears: THREE.Group[] = []
   const eyes: THREE.Mesh[] = []
+  const glints: THREE.Mesh[] = []
   ;[-1, 1].forEach(function (s) {
     const earG = new THREE.Group()
     earG.position.set(s * 0.085, 0.13, -0.01)
@@ -92,8 +96,9 @@ export function createCat(
     headG.add(eye)
     eyes.push(eye)
     const glint = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffffff' }))
-    glint.position.set(s * 0.058, 0.04, 0.144)
-    headG.add(glint)
+    glint.position.set(-s * 0.007, 0.01, 0.019)
+    eye.add(glint)
+    glints.push(glint)
   })
   const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.068, 18, 14), cream)
   muzzle.position.set(0, -0.045, 0.115)
@@ -200,6 +205,11 @@ export function createCat(
     headTimer: 2,
     airTime: 0,
     scaredT: 0,
+    blinkTimer: 3.5 + Math.random() * 3.5,
+    blinkDuration: 0,
+    isBlinking: false,
+    eyes: eyes,
+    glints: glints,
     spawnX: spawn.x,
     spawnY: spawn.y,
     spawnZ: spawn.z,
@@ -240,6 +250,13 @@ export function createCat(
       this.scaredT = 0
       this.swipeT = 0
       this.meowT = 0
+      this.isBlinking = false
+      this.blinkTimer = 3.5 + Math.random() * 3.5
+      this.blinkDuration = 0
+      for (let i = 0; i < eyes.length; i++) {
+        eyes[i].scale.setScalar(1)
+        glints[i].visible = true
+      }
       panicG.visible = false
       this.sync()
     },
@@ -462,17 +479,37 @@ export function createCat(
         bodyC.velocity.set(0, 0, 0)
       }
 
-      // GR-01: Blinking eyes (каждые 3-7 сек)
-      this.blinkTimer = (this.blinkTimer ?? 4) - dt
-      if (this.blinkTimer <= 0) {
-        this.blinkTimer = 3.5 + Math.random() * 3.5
-        this.isBlinking = true
-      }
-      if (this.isBlinking) {
-        for (let i = 0; i < eyes.length; i++) eyes[i].scale.y = 0.1
-        if (this.blinkTimer < 3.4) {
-          this.isBlinking = false
-          for (let i = 0; i < eyes.length; i++) eyes[i].scale.y = 1.0
+      // GR-01: Blinking eyes (каждые 3.5-7 сек на 160 мс)
+      if (this.scaredT > 0) {
+        this.isBlinking = false
+        this.blinkDuration = 0
+        for (let i = 0; i < eyes.length; i++) {
+          glints[i].visible = true
+        }
+      } else {
+        this.blinkTimer = (this.blinkTimer ?? (3.5 + Math.random() * 3.5)) - dt
+        if (this.blinkTimer <= 0) {
+          this.blinkTimer = 3.5 + Math.random() * 3.5
+          this.isBlinking = true
+          this.blinkDuration = 0.16
+        }
+        if (this.isBlinking) {
+          this.blinkDuration = (this.blinkDuration ?? 0.16) - dt
+          for (let i = 0; i < eyes.length; i++) {
+            eyes[i].scale.y = 0.08
+            glints[i].visible = false
+          }
+          if (this.blinkDuration <= 0) {
+            this.isBlinking = false
+            for (let i = 0; i < eyes.length; i++) {
+              eyes[i].scale.y = 1.0
+              glints[i].visible = true
+            }
+          }
+        } else {
+          for (let i = 0; i < eyes.length; i++) {
+            glints[i].visible = eyes[i].scale.y >= 0.4
+          }
         }
       }
 
