@@ -104,23 +104,42 @@ window.addEventListener('error', function (e) {
   <div class="panel wide">
     <h2 id="end-title">ХОЗЯЕВА ВЕРНУЛИСЬ!</h2>
     <p id="end-subtitle" class="subtitle"></p>
-    <div id="end-columns">
-      <div>
-        <h3>Что они увидели</h3>
-        <ul id="end-report"></ul>
-        <div id="end-counters"></div>
-        <h3 class="rooms-h">Комнаты</h3>
-        <ul id="end-rooms"></ul>
-      </div>
-      <div id="end-right">
-        <h3>Итоговый ущерб</h3>
-        <div id="end-total">0 &#8381;</div>
-        <div id="end-record"></div>
-        <div id="end-rank"></div>
-        <div id="end-quest"></div>
-        <div id="end-meta-badges"></div>
+
+    <!-- Вкладки: Газета происшествий / Подробная сводка -->
+    <div class="end-tabs">
+      <button id="tab-newspaper" class="end-tab active" type="button">📰 ГАЗЕТА ПРОИСШЕСТВИЙ</button>
+      <button id="tab-stats" class="end-tab" type="button">📊 ПОДРОБНАЯ СВОДКА</button>
+    </div>
+
+    <!-- Вьювер газеты -->
+    <div id="newspaper-view">
+      <canvas id="newspaper-canvas" width="800" height="520"></canvas>
+      <div class="newspaper-actions">
+        <button id="btn-download-newspaper" class="sub-btn" type="button">📸 СКАЧАТЬ ГАЗЕТУ (PNG)</button>
       </div>
     </div>
+
+    <!-- Подробная сводка -->
+    <div id="stats-view" class="hidden">
+      <div id="end-columns">
+        <div>
+          <h3>Что они увидели</h3>
+          <ul id="end-report"></ul>
+          <div id="end-counters"></div>
+          <h3 class="rooms-h">Комнаты</h3>
+          <ul id="end-rooms"></ul>
+        </div>
+        <div id="end-right">
+          <h3>Итоговый ущерб</h3>
+          <div id="end-total">0 &#8381;</div>
+          <div id="end-record"></div>
+          <div id="end-rank"></div>
+          <div id="end-quest"></div>
+          <div id="end-meta-badges"></div>
+        </div>
+      </div>
+    </div>
+
     <button id="btn-restart" class="big-btn">НАТВОРИТЬ ЕЩЁ</button>
   </div>
 </div>

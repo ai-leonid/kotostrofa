@@ -119,6 +119,133 @@ export function buildProps(scene: any, world: any, apt: any) {
     return g;
   }
 
+  // ---------- процедурная картонная коробка (№1) ----------
+  function meshCardboardBox(w: number = 0.52, h: number = 0.32, d: number = 0.52) {
+    const g = new THREE.Group();
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ba8b54";
+    ctx.fillRect(0, 0, 256, 256);
+    // Прожилки гофрокартона
+    ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+    for (let y = 0; y < 256; y += 4) {
+      ctx.fillRect(0, y, 256, 2);
+    }
+    // Белая этикетка доставки
+    ctx.fillStyle = "#f5f5f0";
+    ctx.fillRect(20, 30, 80, 50);
+    // Штрихкод
+    ctx.fillStyle = "#111";
+    for (let bx = 28; bx < 92; bx += 4) {
+      if (Math.random() > 0.25) ctx.fillRect(bx, 38, 2, 28);
+    }
+    // Трафарет: КОТ ВНУТРИ
+    ctx.fillStyle = "#222";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText("📦 ОСТОРОЖНО", 115, 48);
+    ctx.font = "bold 13px sans-serif";
+    ctx.fillText("КОТ ВНУТРИ", 115, 68);
+    // Черная стрелка вверх
+    ctx.beginPath();
+    ctx.moveTo(40, 160); ctx.lineTo(60, 120); ctx.lineTo(80, 160);
+    ctx.rect(50, 160, 20, 40);
+    ctx.fill();
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("ЭТОЙ СТОРОНОЙ ВВЕРХ", 100, 160);
+    ctx.fillText("FRAGILE • HEAVY", 100, 180);
+
+    const boxTex = new THREE.CanvasTexture(canvas);
+    const boxMat = new THREE.MeshStandardMaterial({
+      map: boxTex,
+      roughness: 0.9,
+      metalness: 0.05
+    });
+
+    const th = 0.016; // толщина стенок
+    // Дно коробки
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(w, th, d), boxMat);
+    bottom.position.y = -h / 2 + th / 2;
+    bottom.castShadow = true;
+    bottom.receiveShadow = true;
+    g.add(bottom);
+
+    // Стенки коробки (передняя, задняя, левая, правая)
+    const wallF = new THREE.Mesh(new THREE.BoxGeometry(w, h, th), boxMat);
+    wallF.position.set(0, 0, d / 2 - th / 2);
+    wallF.castShadow = true;
+    g.add(wallF);
+
+    const wallB = new THREE.Mesh(new THREE.BoxGeometry(w, h, th), boxMat);
+    wallB.position.set(0, 0, -d / 2 + th / 2);
+    wallB.castShadow = true;
+    g.add(wallB);
+
+    const wallL = new THREE.Mesh(new THREE.BoxGeometry(th, h, d - th * 2), boxMat);
+    wallL.position.set(-w / 2 + th / 2, 0, 0);
+    wallL.castShadow = true;
+    g.add(wallL);
+
+    const wallR = new THREE.Mesh(new THREE.BoxGeometry(th, h, d - th * 2), boxMat);
+    wallR.position.set(w / 2 - th / 2, 0, 0);
+    wallR.castShadow = true;
+    g.add(wallR);
+
+    // 4 приоткрытых верхних клапана (flaps)
+    const flapGeoW = new THREE.BoxGeometry(w, th, 0.12);
+    const flapGeoD = new THREE.BoxGeometry(0.12, th, d);
+
+    const flapF = new THREE.Mesh(flapGeoW, boxMat);
+    flapF.position.set(0, h / 2 + 0.01, d / 2 + 0.04);
+    flapF.rotation.x = 0.45;
+    g.add(flapF);
+
+    const flapB = new THREE.Mesh(flapGeoW, boxMat);
+    flapB.position.set(0, h / 2 + 0.01, -d / 2 - 0.04);
+    flapB.rotation.x = -0.45;
+    g.add(flapB);
+
+    const flapL = new THREE.Mesh(flapGeoD, boxMat);
+    flapL.position.set(-w / 2 - 0.04, h / 2 + 0.01, 0);
+    flapL.rotation.z = 0.45;
+    g.add(flapL);
+
+    const flapR = new THREE.Mesh(flapGeoD, boxMat);
+    flapR.position.set(w / 2 + 0.04, h / 2 + 0.01, 0);
+    flapR.rotation.z = -0.45;
+    g.add(flapR);
+
+    return g;
+  }
+
+  function spawnCardboardScraps(pos: CANNON.Vec3 | { x: number; y: number; z: number }, n: number = 8) {
+    const mat = new THREE.MeshStandardMaterial({ color: "#ba8b54", roughness: 0.9 });
+    for (let i = 0; i < n; i++) {
+      const sw = 0.14 + Math.random() * 0.16;
+      const sd = 0.10 + Math.random() * 0.14;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.012, sd), mat);
+      mesh.castShadow = true;
+      const body = new CANNON.Body({ mass: 0.08, material: M.prop });
+      body.addShape(boxShape(sw / 2, 0.006, sd / 2));
+      body.position.set(pos.x + (Math.random() - 0.5) * 0.25, pos.y + 0.1 + Math.random() * 0.15, pos.z + (Math.random() - 0.5) * 0.25);
+      body.velocity.set((Math.random() - 0.5) * 2.8, 1.4 + Math.random() * 2.2, (Math.random() - 0.5) * 2.8);
+      body.angularVelocity.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12);
+      body.allowSleep = true;
+      world.addBody(body);
+      scene.add(mesh);
+      transients.push({
+        mesh: mesh, body: body, t: 0, life: 7.0,
+        onUpdate: function (tr: any, dt: number) {
+          if (tr.t > 5.0) {
+            tr.mesh.material.transparent = true;
+            tr.mesh.material.opacity = Math.max(0, (7.0 - tr.t) / 2.0);
+          }
+        }
+      });
+    }
+  }
+
   // ---------- спавнер осколков и мусора ----------
   function spawnShards(pos: CANNON.Vec3 | { x: number; y: number; z: number }, color: string, n: number, baseVel?: CANNON.Vec3) {
     const roomId = levels.roomOf(pos.x, pos.z) || 'living';
@@ -277,14 +404,17 @@ export function buildProps(scene: any, world: any, apt: any) {
     }
   }
 
-  function spawnPawPrint(x, z, yaw) {
+  function spawnPawPrint(x: number, z: number, yaw: number, wetRatio: number = 1.0) {
     const g = new THREE.Group();
-    const mat = new THREE.MeshBasicMaterial({ color: "#324456", transparent: true, opacity: 0.45, depthWrite: false });
-    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.024, 8), mat);
+    const baseOp = Math.max(0.18, Math.min(0.65, 0.65 * (wetRatio || 1.0)));
+    const mat = new THREE.MeshBasicMaterial({ color: "#223344", transparent: true, opacity: baseOp, depthWrite: false });
+    // Центральная подушечка лапки
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.022, 10), mat);
     pad.rotation.x = -Math.PI / 2;
     g.add(pad);
-    [[-0.015, -0.02], [0, -0.025], [0.015, -0.02]].forEach(function (off) {
-      const toe = new THREE.Mesh(new THREE.CircleGeometry(0.009, 6), mat);
+    // 4 пальчика (подушечки)
+    [[-0.018, -0.016], [-0.007, -0.026], [0.007, -0.026], [0.018, -0.016]].forEach(function (off) {
+      const toe = new THREE.Mesh(new THREE.CircleGeometry(0.008, 8), mat);
       toe.rotation.x = -Math.PI / 2;
       toe.position.set(off[0], 0, off[1]);
       g.add(toe);
@@ -292,11 +422,20 @@ export function buildProps(scene: any, world: any, apt: any) {
     g.position.set(x, 0.012, z);
     g.rotation.y = yaw || 0;
     scene.add(g);
+
+    // Воспроизводим процедурный влажный шлепок лапки
+    if (AudioSys.squelchPaw) AudioSys.squelchPaw(0.12 * (wetRatio || 1.0));
+
+    // Начисляем очки за испачканный пол
+    if (typeof window !== 'undefined' && window.KOTO && window.KOTO.game && window.KOTO.game.state.mode === 'play') {
+      window.KOTO.game.addScore(50, "🐾 Испачкан пол (+50 ₽)");
+    }
+
     transients.push({
-      mesh: g, body: null, t: 0, life: 5.0,
-      onUpdate: function (tr, dt) {
-        const op = Math.max(0, (1 - tr.t / tr.life) * 0.45);
-        tr.mesh.children.forEach(function (c) { c.material.opacity = op; });
+      mesh: g, body: null, t: 0, life: 8.5,
+      onUpdate: function (tr: any, dt: number) {
+        const op = Math.max(0, (1 - tr.t / tr.life) * baseOp);
+        tr.mesh.children.forEach(function (c: any) { c.material.opacity = op; });
       }
     });
   }
@@ -999,6 +1138,16 @@ export function buildProps(scene: any, world: any, apt: any) {
   register("тарелку", 250, meshPlate(), cylShapeY(0.13, 0.03), -4.0, L.coffeeTopY + 0.017, 1.12, { mass: 0.25, breakable: true, breakVel: 1.5, shardColor: "#f2f2ee" });
   register("тарелку", 250, meshPlate(), cylShapeY(0.13, 0.03), -4.58, L.coffeeTopY + 0.017, 1.12, { mass: 0.25, breakable: true, breakVel: 1.5, shardColor: "#f2f2ee" });
   register("кружку", 200, meshCup("#4a8a4e"), cylShapeY(0.035, 0.09), -3.95, L.coffeeTopY + 0.045, 0.66, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#4a8a4e" });
+
+  const boxLiving = register("картонную коробку", 450, meshCardboardBox(0.54, 0.32, 0.54), boxShape(0.27, 0.16, 0.27), -3.8, 0.16, 2.3, {
+    mass: 1.1, breakable: true, breakVel: 2.2, shardColor: "#ba8b54", yaw: 0.2,
+    onBreak: function (_g: any, p: any) {
+      if (AudioSys.cardboardRip) AudioSys.cardboardRip();
+      spawnCardboardScraps(p.body.position, 8);
+      if (KOTO.fx && KOTO.fx.dust) KOTO.fx.dust(p.body.position.x, 0.15, p.body.position.z, 10);
+    }
+  });
+  (boxLiving as any).isCardboardBox = true;
   register("кружку", 200, meshCup("#3c6ea3"), cylShapeY(0.035, 0.09), -4.68, L.coffeeTopY + 0.045, 0.64, { mass: 0.22, breakable: true, breakVel: 2.3, shardColor: "#3c6ea3" });
 
   const remG = new THREE.Group();
@@ -1702,6 +1851,16 @@ export function buildProps(scene: any, world: any, apt: any) {
   chair(1.4, -1.9, Math.PI / 2 + 0.08);
   chair(3.8, -1.9, -Math.PI / 2 - 0.06);
 
+  const boxKitchen = register("картонную коробку", 450, meshCardboardBox(0.52, 0.30, 0.52), boxShape(0.26, 0.15, 0.26), -0.6, 0.15, 0.6, {
+    mass: 1.0, breakable: true, breakVel: 2.2, shardColor: "#ba8b54", yaw: -0.35,
+    onBreak: function (_g: any, p: any) {
+      if (AudioSys.cardboardRip) AudioSys.cardboardRip();
+      spawnCardboardScraps(p.body.position, 8);
+      if (KOTO.fx && KOTO.fx.dust) KOTO.fx.dust(p.body.position.x, 0.15, p.body.position.z, 10);
+    }
+  });
+  (boxKitchen as any).isCardboardBox = true;
+
   // миски кота
   const waterBowlG = new THREE.Group();
   waterBowlG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.05, 14), std("#c94a4a", 0.5)));
@@ -1997,6 +2156,16 @@ export function buildProps(scene: any, world: any, apt: any) {
     bedPlantG.add(leaf);
   }
   register("цветок", 550, bedPlantG, cylShapeY(0.11, 0.22), 7.6, 0.11, 3.95, { mass: 0.6, breakable: true, breakVel: 2.2, shardColor: "#b0684a" });
+
+  const boxBed = register("картонную коробку", 450, meshCardboardBox(0.52, 0.30, 0.52), boxShape(0.26, 0.15, 0.26), 7.8, 0.15, -3.2, {
+    mass: 1.0, breakable: true, breakVel: 2.2, shardColor: "#ba8b54", yaw: 0.18,
+    onBreak: function (_g: any, p: any) {
+      if (AudioSys.cardboardRip) AudioSys.cardboardRip();
+      spawnCardboardScraps(p.body.position, 8);
+      if (KOTO.fx && KOTO.fx.dust) KOTO.fx.dust(p.body.position.x, 0.15, p.body.position.z, 10);
+    }
+  });
+  (boxBed as any).isCardboardBox = true;
   // картины на стене спальни
   hangPicture("картину", 700, 0.55, 0.7, 7.8, 1.6, 4.46, 44);
   hangPicture("картину", 700, 0.6, 0.45, 9.9, 1.62, 4.46, 55);
@@ -2346,6 +2515,29 @@ export function buildProps(scene: any, world: any, apt: any) {
         }
       }
     });
+    // Проверка кота внутри картонных коробок (укрытие от пылесоса)
+    let catInsideBox = false;
+    if (KOTO.cat && KOTO.cat.body) {
+      const cp = KOTO.cat.body.position;
+      for (const p of props) {
+        if ((p as any).isCardboardBox && !p.broken) {
+          const bp = p.body.position;
+          const dist = Math.hypot(cp.x - bp.x, cp.z - bp.z);
+          const yDiff = Math.abs(cp.y - bp.y);
+          if (dist < 0.28 && yDiff < 0.35) {
+            catInsideBox = true;
+            (p as any).catInside = true;
+            break;
+          } else {
+            (p as any).catInside = false;
+          }
+        }
+      }
+    }
+    if (typeof window !== 'undefined' && window.KOTO) {
+      (window.KOTO as any).catInBox = catInsideBox;
+    }
+
     // Обновление Жорки-3000
     if (!vacuum.broken) {
       if (vacuum.stunTimer > 0) {
@@ -2381,8 +2573,8 @@ export function buildProps(scene: any, world: any, apt: any) {
       vacuum.mesh.position.copy(vacuum.pos);
       vacuum.mesh.rotation.y = vacuum.yaw;
 
-      // Опасность для кота: наезд сбивает комбо в 0 и вызывает панику!
-      if (KOTO.cat && vacuum.scareCd <= 0) {
+      // Опасность для кота: наезд сбивает комбо в 0 и вызывает панику! (если кот не спрятался в коробке)
+      if (KOTO.cat && vacuum.scareCd <= 0 && !(window.KOTO as any).catInBox) {
         const cp = KOTO.cat.body.position;
         const dx = cp.x - vacuum.pos.x, dz = cp.z - vacuum.pos.z;
         if (Math.hypot(dx, dz) < 0.52 && Math.abs(cp.y - vacuum.pos.y) < 0.45) {

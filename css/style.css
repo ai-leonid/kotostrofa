@@ -413,6 +413,89 @@ h2 {
 }
 #end-record .rec-sub { font-size: 13px; opacity: .7; margin-top: 2px; }
 
+/* ---------- Газета происшествий и вкладки финального экрана ---------- */
+.end-tabs {
+  display: inline-flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0 16px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 5px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.end-tab {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  padding: 8px 20px;
+  border-radius: 22px;
+  border: none;
+  background: transparent;
+  color: #c9d1d9;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.end-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.end-tab.active {
+  background: #ffd66b;
+  color: #1a1205;
+  box-shadow: 0 4px 14px rgba(255, 214, 107, 0.35);
+}
+#newspaper-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 20px;
+  animation: fadeIn 0.35s ease;
+}
+#newspaper-canvas {
+  max-width: 100%;
+  max-height: 52vh;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+  border: 2px solid #2e2418;
+}
+.newspaper-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.sub-btn {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 10px 22px;
+  border-radius: 20px;
+  background: #252e3e;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.18s ease;
+}
+.sub-btn:hover {
+  background: #394760;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+#stats-view {
+  animation: fadeIn 0.35s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 #errlog { display: none; }
 
 /* ---------- Виньетка ---------- */

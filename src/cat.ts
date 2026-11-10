@@ -25,6 +25,7 @@ export interface CatInstance {
   scaredT: number
   wetTime?: number
   stepAccum?: number
+  footSide?: boolean
   roll?: number
   earBack?: number
   tailLag?: number[]
@@ -278,7 +279,8 @@ export function createCat(
         const dz = cp.z - p.z
         if (dx * dx + dz * dz < (p.r + 0.18) * (p.r + 0.18)) {
           inPuddle = true
-          this.wetTime = 5.0
+          if (this.wetTime < 11.0 && AudioSys.splash) AudioSys.splash()
+          this.wetTime = 12.0
           break
         }
       }
@@ -387,14 +389,22 @@ export function createCat(
         this.wetTime -= dt
         this.stepAccum = (this.stepAccum || 0) + sp * dt
         if (
-          this.stepAccum > 0.32 &&
+          this.stepAccum > 0.25 &&
           this.grounded &&
+          sp > 0.35 &&
           typeof window !== 'undefined' &&
           window.KOTO &&
-          window.KOTO.fx
+          window.KOTO.fx &&
+          (window.KOTO.fx as any).pawPrint
         ) {
           this.stepAccum = 0
-          window.KOTO.fx.pawPrint(cp.x, cp.z, this.yaw)
+          this.footSide = !this.footSide
+          const side = this.footSide ? 1 : -1
+          // Чередующиеся отпечатки лапок (левая / правая)
+          const perpX = Math.cos(this.yaw) * 0.045 * side
+          const perpZ = -Math.sin(this.yaw) * 0.045 * side
+          const wetRatio = Math.max(0.12, this.wetTime / 12.0)
+          ;(window.KOTO.fx as any).pawPrint(cp.x + perpX, cp.z + perpZ, this.yaw, wetRatio)
         }
       }
       this.speedSmooth += (sp - this.speedSmooth) * Math.min(1, 9 * dt)

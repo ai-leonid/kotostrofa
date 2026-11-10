@@ -582,10 +582,11 @@ function updateCatPortrait(dt: number) {
   const ctx = portraitCtx
   ctx.clearRect(0, 0, 64, 64)
 
-  const isScared = cat.scaredT > 0
+  const isInBox = !!(window as any)?.KOTO?.catInBox
+  const isScared = cat.scaredT > 0 && !isInBox
   const isMeow = cat.meowT > 0
-  const isRunning = inputManager.getInput().run
-  const isPurring = idleStillTimer >= 8.0
+  const isRunning = inputManager.getInput().run && !isInBox
+  const isPurring = idleStillTimer >= 8.0 || isInBox
 
   ctx.save()
   // Фон
@@ -629,10 +630,10 @@ function updateCatPortrait(dt: number) {
     ctx.fillStyle = 'rgba(255, 120, 150, 0.45)'
     ctx.beginPath(); ctx.arc(17, 37, 3.2, 0, Math.PI * 2); ctx.fill()
     ctx.beginPath(); ctx.arc(47, 37, 3.2, 0, Math.PI * 2); ctx.fill()
-    // Маленькая нотка над головой
-    ctx.fillStyle = '#ffdf7e'
-    ctx.font = '11px sans-serif'
-    ctx.fillText('♪', 44, 20)
+    // Маленькая нотка или коробка над головой
+    ctx.font = isInBox ? '13px sans-serif' : '11px sans-serif'
+    ctx.fillStyle = isInBox ? '#ffffff' : '#ffdf7e'
+    ctx.fillText(isInBox ? '📦' : '♪', 43, 20)
   } else if (isRunning) {
     ctx.fillStyle = '#ffffff'
     ctx.beginPath(); ctx.ellipse(24, 32, 5, 3, 0, 0, Math.PI * 2); ctx.fill()
@@ -707,14 +708,15 @@ function updateProximityAudio(dt: number) {
   if (game.state.mode !== 'play' || game.state.paused || !cat || !cat.body) return
   const cp = cat.body.position
 
-  // Мурчание котика при отдыхе без движения > 8.0 сек
+  // Мурчание котика при отдыхе без движения > 8.0 сек или внутри коробки
+  const isInBox = !!(window as any)?.KOTO?.catInBox
   const moved = Math.hypot(cp.x - lastCatX, cp.z - lastCatZ)
   lastCatX = cp.x
   lastCatZ = cp.z
   const PURR_IDLE_SECS = 8.0
-  if (moved < 0.02) {
+  if (moved < 0.02 || isInBox) {
     const wasIdle = idleStillTimer >= PURR_IDLE_SECS
-    idleStillTimer += dt
+    idleStillTimer += dt * (isInBox ? 2.5 : 1.0)
     if (idleStillTimer >= PURR_IDLE_SECS) {
       if (!wasIdle) {
         // Первый вдох-выдох мурлыканья сразу по достижении 8 сек

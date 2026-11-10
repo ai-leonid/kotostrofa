@@ -102,4 +102,5 @@ export interface GameAPI {
   onLassoRelease?(): void
   getLassoProp?(): any
   triggerCatastrophe?(): void
+  finish?(win?: boolean): void
 }

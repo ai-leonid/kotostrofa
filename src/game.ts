@@ -4,6 +4,7 @@ import AudioSys from './audio'
 import levels from './levels'
 import save from './save'
 import { bus } from './events'
+import { drawNewspaper } from './newspaper'
 import type { GameAPI, GameStateSnapshot, Prop, RoomId } from './types/game'
 
 declare const KOTO: any
@@ -20,12 +21,11 @@ export const game: GameAPI = (function () {
       steps: [
         { text: "Сбрось картину или часы со стены", fact: "hangDown" },
         { text: "Опрокинь торшер", fact: "lampKnocked" },
-        { text: "Подради диван когтями", fact: "sofaScratched" }
+        { text: "Подери диван когтями", fact: "sofaScratched" }
       ],
       onEvent: function (q, ev) {
         if (ev.room !== "living") return;
         if (ev.type === "hang") q.hangDown = true;
-        if (ev.type === "knock" && ev.name === "торшер") q.lampKnocked = true;
       }
     },
     {
@@ -89,7 +89,7 @@ export const game: GameAPI = (function () {
         if (ev.room !== "bath") return;
         if ((ev.type === "knock" || ev.type === "break") && (ev.name === "шампунь" || ev.name === "гель")) countOnce(q, ev);
         if (ev.type === "world" && ev.kind === "paper") q.paperTorn = true;
-        if (ev.type === "knock" && ev.name === "весы") q.scalesDown = true;
+        if ((ev.type === "knock" || ev.type === "break") && ev.name === "весы") q.scalesDown = true;
       }
     },
     {
@@ -125,7 +125,7 @@ export const game: GameAPI = (function () {
         { text: "Поточи когти о ковёр в спальне", fact: "rugScratched" }
       ],
       onEvent: function (q, ev) {
-        if (ev.room === "bedroom" && ev.type === "break" && ev.name === "лампу") q.lampDown = true;
+        if (ev.room === "bedroom" && (ev.type === "break" || ev.type === "knock") && (ev.name === "лампу" || ev.name === "лампа" || (ev.prop && ev.prop.name === "лампу"))) q.lampDown = true;
       }
     },
     {
@@ -174,9 +174,11 @@ export const game: GameAPI = (function () {
     nightHuntT: 0,
     metaQuests: { vacuumSlayer: false, totalRampage: false, chaosStar: false },
     roomsVisitedInCombo: [],
-    hardMode: false
+    hardMode: false,
+    warnedSteps: false,
+    warnedKeys: false
   };
-  QUESTS.forEach(function (qd: any) { state.quests[qd.id] = { step: 0, done: false }; });
+  QUESTS.forEach(function (qd: any) { state.quests[qd.id] = { step: 0, done: false, completedSteps: {} }; });
   state.quest = state.quests.fish; // совместимость со старыми тестами
 
   let refs: any = null;
@@ -195,7 +197,8 @@ export const game: GameAPI = (function () {
       "hud-room", "hud-room-name", "hud-room-pts", "hud-room-bar",
       "screen-start", "screen-pause", "screen-end", "end-title", "end-subtitle", "end-report",
       "end-counters", "end-total", "end-rank", "end-quest", "end-record", "end-rooms", "start-record", "errlog", "speed-lines",
-      "hud-daily-special", "daily-special-text", "hud-lasso", "ultra-chaos-overlay", "end-meta-badges"
+      "hud-daily-special", "daily-special-text", "hud-lasso", "ultra-chaos-overlay", "end-meta-badges",
+      "tab-newspaper", "tab-stats", "newspaper-view", "stats-view", "newspaper-canvas", "btn-download-newspaper"
     ].forEach(function (id) { els[id] = document.getElementById(id); });
   }
 
@@ -592,7 +595,9 @@ export const game: GameAPI = (function () {
     for (const t of KOTO.propsSys.scratchTargets) {
       if (t.cd > 0) continue;
       const dx = t.x - cp.x, dz = t.z - cp.z;
-      if (Math.sqrt(dx * dx + dz * dz) < t.r + 0.5) {
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const isNearSofa = (t.name === "диван") && (cp.x >= -7.2 && cp.x <= -5.0 && cp.z >= -0.7 && cp.z <= 2.5);
+      if (dist < t.r + 0.75 || isNearSofa) {
         t.cd = 2.2;
         const sf = SCRATCH_FACTS[t.questId];
         if (sf) state.quests[sf[0]][sf[1]] = true;
@@ -604,6 +609,7 @@ export const game: GameAPI = (function () {
         if (KOTO.fx && (t.name === "диван" || t.name === "кровать" || t.name === "коврик" || t.name === "ковёр")) {
           KOTO.fx.feathers(t.x, cp.y + 0.3, t.z, 6);
         }
+        progressAllQuests();
       }
     }
   }
@@ -629,9 +635,10 @@ export const game: GameAPI = (function () {
     }
   }
 
-  // Карточки строятся динамически: чипы пройденных комнат + квесты текущей
+  // Карточки строятся динамически: чипы пройденных комнат + квесты текущей (шаги отображаются независимо)
   function renderQuests() {
     const wrap = els["hud-quests"];
+    if (!wrap) return;
     wrap.innerHTML = "";
     levels.ORDER.forEach(function (roomId) {
       const info = levels.info(roomId);
@@ -645,12 +652,26 @@ export const game: GameAPI = (function () {
       if (roomId !== state.room) return;
       QUESTS.filter(function (qd) { return qd.room === roomId; }).forEach(function (qd) {
         const q = state.quests[qd.id];
+        if (!q) return;
         const card = document.createElement("div");
         card.className = "hud-quest" + (q.done ? " all-done" : "") + (qd.optional ? " optional" : "");
         let html = "";
+        q.completedSteps = q.completedSteps || {};
+
+        // Находим первый незавершенный шаг для индикатора ▶ (current)
+        let firstUnfinished = -1;
+        for (let s = 0; s < qd.steps.length; s++) {
+          if (!q.completedSteps[s] && !q.done) {
+            firstUnfinished = s;
+            break;
+          }
+        }
+
         for (let s = 0; s < qd.steps.length; s++) {
           const step = qd.steps[s];
-          const cls = s < q.step ? "done" : (s === q.step ? "current" : "");
+          const isDone = !!q.completedSteps[s] || q.done;
+          const isCurrent = !isDone && (s === firstUnfinished);
+          const cls = isDone ? "done" : (isCurrent ? "current" : "");
           const txt = typeof step.text === "function" ? step.text(q) : step.text;
           html += '<li class="' + cls + '">' + txt + "</li>";
         }
@@ -664,25 +685,6 @@ export const game: GameAPI = (function () {
     });
   }
 
-  function completeStep(qd, q) {
-    q.step += 1;
-    AudioSys.tinkle();
-    const cp = refs.cat.body.position;
-    if (q.step >= qd.steps.length) {
-      q.done = true;
-      const tBonus = qd.mandatory ? 5 : 3;
-      state.timeLeft += tBonus;
-      addScore(qd.reward, qd.room);
-      record(qd.doneText, qd.reward);
-      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +" + fmt(qd.reward) + "₽ (+" + tBonus + "с)", "quest");
-      addFeed("«" + qd.title + "» выполнен! +" + fmt(qd.reward) + "₽ (+" + tBonus + " с)");
-    } else {
-      floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "Шаг " + q.step + " из " + qd.steps.length + " — готово!", "quest");
-      addFeed("«" + qd.title + "»: шаг " + q.step + "/" + qd.steps.length);
-    }
-    renderQuests();
-  }
-
   function eatFish() {
     const q = state.quests.fish;
     const fish = KOTO.propsSys.fish;
@@ -694,6 +696,7 @@ export const game: GameAPI = (function () {
     const cp = refs.cat.body.position;
     addFeed("Рыбка съедена. Свидетелей нет.");
     floater({ x: cp.x, y: cp.y + 0.4, z: cp.z }, "СЪЕЛ РЫБКУ!", "quest");
+    progressAllQuests();
   }
 
   function insideAABB(b, p) {
@@ -708,16 +711,50 @@ export const game: GameAPI = (function () {
       if (!q || q.done || !qd.onEvent) continue;
       qd.onEvent(q, ev);
     }
+    progressAllQuests();
   }
 
+  // Полностью независимое прохождение шагов заданий (в любом порядке!)
   function progressQuest(qd, q) {
-    let guard = 0;
-    while (!q.done && guard++ < 5) {
-      const step = qd.steps[q.step];
-      if (!step) break;
-      const ready = typeof step.fact === "function" ? step.fact(q, state) : !!q[step.fact];
-      if (!ready) break;
-      completeStep(qd, q);
+    if (!q || q.done) return;
+    q.completedSteps = q.completedSteps || {};
+    let newlyCompleted = false;
+
+    for (let s = 0; s < qd.steps.length; s++) {
+      if (q.completedSteps[s]) continue;
+      const step = qd.steps[s];
+      const ready = typeof step.fact === "function" ? !!step.fact(q, state) : !!q[step.fact];
+      if (ready) {
+        q.completedSteps[s] = true;
+        newlyCompleted = true;
+        const cp = (refs && refs.cat && refs.cat.body) ? refs.cat.body.position : { x: 0, y: 1, z: 0 };
+        const stepTxt = typeof step.text === "function" ? step.text(q) : step.text;
+        AudioSys.tinkle();
+        floater({ x: cp.x, y: cp.y + 0.5, z: cp.z }, "✔ " + stepTxt, "quest");
+        addFeed("«" + qd.title + "»: выполнено «" + stepTxt + "»!");
+      }
+    }
+
+    let consecutive = 0;
+    while (q.completedSteps[consecutive]) {
+      consecutive++;
+    }
+    q.step = consecutive;
+    const completedCount = Object.keys(q.completedSteps).length;
+
+    if (newlyCompleted) {
+      if (completedCount >= qd.steps.length) {
+        q.done = true;
+        const cp = (refs && refs.cat && refs.cat.body) ? refs.cat.body.position : { x: 0, y: 1, z: 0 };
+        const tBonus = qd.mandatory ? 5 : 3;
+        state.timeLeft += tBonus;
+        addScore(qd.reward, qd.room);
+        record(qd.doneText, qd.reward);
+        floater({ x: cp.x, y: cp.y + 0.65, z: cp.z }, "КВЕСТ ВЫПОЛНЕН! +" + fmt(qd.reward) + "₽ (+" + tBonus + "с)", "quest");
+        addFeed("«" + qd.title + "» выполнен! +" + fmt(qd.reward) + "₽ (+" + tBonus + " с)");
+        if (AudioSys.fanfare) AudioSys.fanfare();
+      }
+      renderQuests();
     }
   }
 
@@ -744,6 +781,50 @@ export const game: GameAPI = (function () {
       const dx = p.x - fp.x, dz = p.z - fp.z;
       if (Math.hypot(dx, dz) < 0.95) {
         KOTO.propsSys.fridge.open();
+      }
+    }
+
+    // Проверка физического падения торшера: торшер должен именно УПАСТЬ и ЛЕЖАТЬ НА БОКУ
+    if (Q.art && !Q.art.lampKnocked) {
+      const propsList = (refs && refs.propsSys && refs.propsSys.props) || (typeof window !== 'undefined' && window.KOTO && window.KOTO.propsSys ? window.KOTO.propsSys.props : []);
+      const floorLamp = propsList.find((pr: any) => pr.name === "торшер");
+      if (floorLamp && floorLamp.body) {
+        const q = floorLamp.body.quaternion;
+        const upY = 1 - 2 * (q.x * q.x + q.z * q.z);
+        const posY = floorLamp.body.position.y;
+        // Торшер должен реально лежать на боку (не просто удар/поломка при вертикальном положении):
+        // 1. Сильный наклон к горизонту (|upY| < 0.45, угол наклона > 63°)
+        // 2. Центр тяжести опустился близко к полу (posY < 0.42 м, при стоянии = 0.82 м)
+        if (posY < 0.42 && Math.abs(upY) < 0.45) {
+          Q.art.lampKnocked = true;
+          progressAllQuests();
+        }
+      }
+    }
+
+    // Проверка падения прикроватной лампы в спальне
+    if (Q.bedroom && !Q.bedroom.lampDown) {
+      const propsList = (refs && refs.propsSys && refs.propsSys.props) || (typeof window !== 'undefined' && window.KOTO && window.KOTO.propsSys ? window.KOTO.propsSys.props : []);
+      const bedLamp = propsList.find((pr: any) => pr.name === "лампу" && pr.room === "bedroom");
+      if (bedLamp && bedLamp.body) {
+        const q = bedLamp.body.quaternion;
+        const upY = 1 - 2 * (q.x * q.x + q.z * q.z);
+        if (bedLamp.broken || bedLamp.body.position.y < 0.65 || Math.abs(upY) < 0.75) {
+          Q.bedroom.lampDown = true;
+        }
+      }
+    }
+
+    // Проверка сбитых весов в ванной
+    if (Q.bathfun && !Q.bathfun.scalesDown) {
+      const propsList = (refs && refs.propsSys && refs.propsSys.props) || (typeof window !== 'undefined' && window.KOTO && window.KOTO.propsSys ? window.KOTO.propsSys.props : []);
+      const scales = propsList.find((pr: any) => pr.name === "весы");
+      if (scales && scales.body) {
+        const q = scales.body.quaternion;
+        const upY = 1 - 2 * (q.x * q.x + q.z * q.z);
+        if (scales.broken || Math.abs(upY) < 0.75 || Math.hypot(scales.body.velocity.x, scales.body.velocity.z) > 0.6) {
+          Q.bathfun.scalesDown = true;
+        }
       }
     }
   }
@@ -904,6 +985,96 @@ export const game: GameAPI = (function () {
     };
     (window as any).__stats = stats;
     els.errlog.dataset.stats = JSON.stringify(stats);
+
+    // Ретро-газета происшествий «ВЕЧЕРНИЙ ХАОС»
+    const canvas = (els["newspaper-canvas"] as HTMLCanvasElement) || (document.getElementById("newspaper-canvas") as HTMLCanvasElement);
+    if (canvas) {
+      let glCanvas: HTMLCanvasElement | null = null;
+      if (refs && refs.renderer) {
+        if (refs.scene && refs.camera) {
+          try {
+            refs.renderer.render(refs.scene, refs.camera);
+          } catch (e) {}
+        }
+        glCanvas = refs.renderer.domElement;
+      }
+
+      const propsList = (refs && refs.propsSys && refs.propsSys.props) || [];
+      const isTvBroken = (refs && refs.propsSys && refs.propsSys.tv && refs.propsSys.tv.broken) ||
+        propsList.some((p: any) => p.name === "телевизор" && p.broken);
+      const isFishbowlBroken = !!(state.quests && state.quests.fish && state.quests.fish.fishbowlDown) ||
+        propsList.some((p: any) => p.name === "аквариум" && p.broken);
+      const isCurtainFallen = !!(refs && refs.apt && refs.apt.curtains && refs.apt.curtains.some((c: any) => c.fallen));
+      const isVacuumBroken = !!(refs && refs.propsSys && refs.propsSys.vacuum && refs.propsSys.vacuum.broken);
+
+      drawNewspaper(
+        canvas,
+        {
+          score: state.score,
+          broken: state.broken,
+          dishes: state.dishes,
+          maxCombo: state.maxCombo,
+          roomsDone: state.level.done.length,
+          roomsTotal: state.level.order.length,
+          rankName: r[0],
+          rankDesc: r[1],
+          speedBonus: state.speedBonus,
+          win: !!win,
+          topEvents: rows.slice(0, 5),
+          brokenTV: isTvBroken,
+          brokenAquarium: isFishbowlBroken,
+          fallenCurtains: isCurtainFallen,
+          brokenVacuum: isVacuumBroken
+        },
+        glCanvas
+      );
+    }
+
+    setupEndScreenTabs();
+  }
+
+  function setupEndScreenTabs() {
+    const tabNewspaper = els["tab-newspaper"] || document.getElementById("tab-newspaper");
+    const tabStats = els["tab-stats"] || document.getElementById("tab-stats");
+    const newspaperView = els["newspaper-view"] || document.getElementById("newspaper-view");
+    const statsView = els["stats-view"] || document.getElementById("stats-view");
+    const btnDownload = els["btn-download-newspaper"] || document.getElementById("btn-download-newspaper");
+
+    if (tabNewspaper && tabStats && newspaperView && statsView) {
+      tabNewspaper.onclick = function () {
+        tabNewspaper.classList.add("active");
+        tabStats.classList.remove("active");
+        newspaperView.classList.remove("hidden");
+        statsView.classList.add("hidden");
+      };
+      tabStats.onclick = function () {
+        tabStats.classList.add("active");
+        tabNewspaper.classList.remove("active");
+        statsView.classList.remove("hidden");
+        newspaperView.classList.add("hidden");
+      };
+      // По умолчанию открыта вкладка газеты
+      tabNewspaper.classList.add("active");
+      tabStats.classList.remove("active");
+      newspaperView.classList.remove("hidden");
+      statsView.classList.add("hidden");
+    }
+
+    if (btnDownload && !btnDownload.dataset.bound) {
+      btnDownload.dataset.bound = "true";
+      btnDownload.onclick = function () {
+        const c = (els["newspaper-canvas"] as HTMLCanvasElement) || (document.getElementById("newspaper-canvas") as HTMLCanvasElement);
+        if (!c) return;
+        try {
+          const link = document.createElement("a");
+          link.download = "kotostrofa-gazeta.png";
+          link.href = c.toDataURL("image/png");
+          link.click();
+        } catch (e) {
+          console.warn("Не удалось сохранить газету:", e);
+        }
+      };
+    }
   }
 
   function finish(win?: boolean) {
@@ -929,6 +1100,7 @@ export const game: GameAPI = (function () {
       AudioSys.fanfare();
     } else {
       showBanner("ХОЗЯЕВА ВЕРНУЛИСЬ!", "", 2.5);
+      AudioSys.doorOpenSlam(0.85);
       AudioSys.knock();
     }
     finishMeowTimeoutId = setTimeout(function () { refs.cat.meowT = 0.55; AudioSys.meow(); }, 700);
@@ -1078,6 +1250,8 @@ export const game: GameAPI = (function () {
       state.startedAt = Date.now();
       state.newRecord = false;
       state.finishing = false;
+      state.warnedSteps = false;
+      state.warnedKeys = false;
       state.speedLeft = 0;
       state.speedBonus = 0;
       state.score = 0;
@@ -1088,7 +1262,7 @@ export const game: GameAPI = (function () {
       state.dishes = 0;
       state.shake = 0;
       state.events.length = 0;
-      QUESTS.forEach(function (qd: any) { state.quests[qd.id] = { step: 0, done: false }; });
+      QUESTS.forEach(function (qd: any) { state.quests[qd.id] = { step: 0, done: false, completedSteps: {} }; });
       state.quest = state.quests.fish;
       state.mode = "play";
       state.paused = false;
@@ -1149,7 +1323,21 @@ export const game: GameAPI = (function () {
         if (KOTO.minimap) KOTO.minimap.update(dt);
         return;
       }
-      if (!state.finishing) state.timeLeft -= dt;
+      if (!state.finishing) {
+        state.timeLeft -= dt;
+        if (state.timeLeft <= 25 && !state.warnedSteps && state.duration >= 35) {
+          state.warnedSteps = true;
+          AudioSys.ownerFootsteps(0.55);
+          showBanner("⚠️ ШАГИ В ПОДЪЕЗДЕ! Хозяева близко!", "warn", 3.0);
+          addFeed("⚠️ В подъезде слышны тяжёлые шаги хозяев! Ускоряйся!");
+        }
+        if (state.timeLeft <= 8 && !state.warnedKeys && state.duration >= 15) {
+          state.warnedKeys = true;
+          AudioSys.keyInLock(0.7);
+          showBanner("🚨 КЛЮЧ В ЗАМКЕ! ДЕЛАЙ НЕВИННЫЙ ВИД!", "warn", 3.5);
+          addFeed("🚨 Ключ поворачивается в замке! Замри или прячься в коробку!");
+        }
+      }
       if (state.comboT > 0) {
         state.comboT -= dt;
         if (state.comboT <= 0) {
@@ -1225,6 +1413,7 @@ export const game: GameAPI = (function () {
     releaseHang: releaseHang,
     getLassoProp: function () { return lassoProp; },
     triggerCatastrophe: triggerCatastrophe,
+    finish: finish,
     getSnapshot: function () {
       return {
         mode: state.mode,

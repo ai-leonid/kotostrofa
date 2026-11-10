@@ -45,6 +45,11 @@ export interface AudioSystem {
   metallicClang(vol?: number): void
   plasticClack(vol?: number): void
   phoneBeep(vol?: number): void
+  ownerFootsteps(vol?: number): void
+  keyInLock(vol?: number): void
+  doorOpenSlam(vol?: number): void
+  squelchPaw(vol?: number): void
+  cardboardRip(vol?: number): void
 }
 
 export const AudioSys: AudioSystem = {
@@ -913,6 +918,226 @@ export const AudioSys: AudioSystem = {
       o.start(t0)
       o.stop(t0 + 0.09)
     })
+  },
+
+  ownerFootsteps(vol: number = 0.32): void {
+    if (!this.ctx || !this.master || !this._gate('ownerFootsteps', 2.2)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.45, Math.max(0.05, vol))
+    // 4 последовательных шага хозяев в подъезде по лестнице
+    ;[0, 0.52, 1.05, 1.58].forEach((delay, idx) => {
+      const stepT = t0 + delay
+      const stepVol = v * (0.75 + idx * 0.1) // шаги становятся громче по мере приближения
+      try {
+        // Низкочастотный глухой удар подошвы
+        const osc = ctx.createOscillator()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(80, stepT)
+        osc.frequency.exponentialRampToValueAtTime(38, stepT + 0.14)
+        const g = ctx.createGain()
+        g.gain.setValueAtTime(0.001, stepT)
+        g.gain.exponentialRampToValueAtTime(stepVol, stepT + 0.015)
+        g.gain.exponentialRampToValueAtTime(0.001, stepT + 0.16)
+        osc.connect(g)
+        g.connect(this.master!)
+        osc.start(stepT)
+        osc.stop(stepT + 0.17)
+
+        // Шумовой шорох обуви по ступенькам
+        const noise = this._noise(0.8)
+        const f = ctx.createBiquadFilter()
+        f.type = 'lowpass'
+        f.frequency.setValueAtTime(260, stepT)
+        const ng = ctx.createGain()
+        ng.gain.setValueAtTime(stepVol * 0.45, stepT)
+        ng.gain.exponentialRampToValueAtTime(0.001, stepT + 0.13)
+        noise.connect(f)
+        f.connect(ng)
+        ng.connect(this.master!)
+        noise.start(stepT)
+        noise.stop(stepT + 0.14)
+      } catch (e) {}
+    })
+  },
+
+  keyInLock(vol: number = 0.35): void {
+    if (!this.ctx || !this.master || !this._gate('keyInLock', 2.0)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.5, Math.max(0.05, vol))
+
+    // 1. Звон связки металлических ключей (высокие резонансы)
+    ;[0, 0.09, 0.18].forEach(d => {
+      const kt = t0 + d
+      ;[2800, 3700, 4900].forEach((freq, fi) => {
+        const osc = ctx.createOscillator()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq + (fi % 2 === 0 ? 80 : -60), kt)
+        const g = ctx.createGain()
+        g.gain.setValueAtTime(0.001, kt)
+        g.gain.exponentialRampToValueAtTime(v * 0.18, kt + 0.004)
+        g.gain.exponentialRampToValueAtTime(0.001, kt + 0.065)
+        osc.connect(g)
+        g.connect(this.master!)
+        osc.start(kt)
+        osc.stop(kt + 0.07)
+      })
+    })
+
+    // 2. Вставка ключа и скрежет ригелей замка (t0 + 0.32)
+    const lockT = t0 + 0.32
+    try {
+      const noise = this._noise(1.8)
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.setValueAtTime(1400, lockT)
+      bp.Q.value = 4.0
+      const ng = ctx.createGain()
+      ng.gain.setValueAtTime(v * 0.4, lockT)
+      ng.gain.exponentialRampToValueAtTime(0.001, lockT + 0.22)
+      noise.connect(bp)
+      bp.connect(ng)
+      ng.connect(this.master)
+      noise.start(lockT)
+      noise.stop(lockT + 0.24)
+    } catch (e) {}
+
+    // 3. Тяжелый щелчок запирающего механизма (t0 + 0.55)
+    const clkSeq = [t0 + 0.48, t0 + 0.58]
+    clkSeq.forEach(ct => {
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.setValueAtTime(220, ct)
+      o.frequency.exponentialRampToValueAtTime(90, ct + 0.05)
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0.001, ct)
+      g.gain.exponentialRampToValueAtTime(v * 0.6, ct + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.001, ct + 0.06)
+      o.connect(g)
+      g.connect(this.master!)
+      o.start(ct)
+      o.stop(ct + 0.07)
+    })
+  },
+
+  doorOpenSlam(vol: number = 0.38): void {
+    if (!this.ctx || !this.master || !this._gate('doorOpenSlam', 1.0)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.5, Math.max(0.05, vol))
+
+    // Скрип дверных петель
+    const o = ctx.createOscillator()
+    o.type = 'sawtooth'
+    o.frequency.setValueAtTime(95, t0)
+    o.frequency.linearRampToValueAtTime(140, t0 + 0.15)
+    o.frequency.linearRampToValueAtTime(75, t0 + 0.32)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 480
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v * 0.35, t0 + 0.03)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35)
+    o.connect(lp)
+    lp.connect(g)
+    g.connect(this.master)
+    o.start(t0)
+    o.stop(t0 + 0.36)
+
+    // Хлопок распахивающейся двери
+    const thud = ctx.createOscillator()
+    thud.type = 'sine'
+    thud.frequency.setValueAtTime(90, t0 + 0.18)
+    thud.frequency.exponentialRampToValueAtTime(35, t0 + 0.45)
+    const tg = ctx.createGain()
+    tg.gain.setValueAtTime(0.001, t0 + 0.18)
+    tg.gain.exponentialRampToValueAtTime(v * 0.7, t0 + 0.20)
+    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.46)
+    thud.connect(tg)
+    tg.connect(this.master)
+    thud.start(t0 + 0.18)
+    thud.stop(t0 + 0.48)
+  },
+
+  squelchPaw(vol: number = 0.14): void {
+    if (!this.ctx || !this.master || !this._gate('squelchPaw', 0.12)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.25, Math.max(0.02, vol))
+
+    // Мягкий влажный шлепок лапки
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(260, t0)
+    o.frequency.exponentialRampToValueAtTime(120, t0 + 0.06)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v * 0.7, t0 + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07)
+    o.connect(g)
+    g.connect(this.master)
+    o.start(t0)
+    o.stop(t0 + 0.08)
+
+    // Водяной брызг-шлепок
+    try {
+      const noise = this._noise(1.5)
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.setValueAtTime(750, t0)
+      bp.Q.value = 2.0
+      const ng = ctx.createGain()
+      ng.gain.setValueAtTime(v * 0.35, t0)
+      ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05)
+      noise.connect(bp)
+      bp.connect(ng)
+      ng.connect(this.master)
+      noise.start(t0)
+      noise.stop(t0 + 0.06)
+    } catch (e) {}
+  },
+
+  cardboardRip(vol: number = 0.28): void {
+    if (!this.ctx || !this.master || !this._gate('cardboardRip', 0.18)) return
+    const ctx = this.ctx
+    const t0 = ctx.currentTime
+    const v = Math.min(0.42, Math.max(0.04, vol))
+
+    // Хруст и разрыв плотного гофрокартона
+    try {
+      const noise = this._noise(0.9)
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.setValueAtTime(920, t0)
+      bp.frequency.linearRampToValueAtTime(540, t0 + 0.16)
+      bp.Q.value = 2.2
+      const ng = ctx.createGain()
+      ng.gain.setValueAtTime(0.001, t0)
+      ng.gain.exponentialRampToValueAtTime(v * 0.8, t0 + 0.015)
+      ng.gain.exponentialRampToValueAtTime(v * 0.3, t0 + 0.08)
+      ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18)
+      noise.connect(bp)
+      bp.connect(ng)
+      ng.connect(this.master)
+      noise.start(t0)
+      noise.stop(t0 + 0.2)
+    } catch (e) {}
+
+    // Низкий стук удара по коробке
+    const o = ctx.createOscillator()
+    o.type = 'triangle'
+    o.frequency.setValueAtTime(130, t0)
+    o.frequency.exponentialRampToValueAtTime(45, t0 + 0.12)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.001, t0)
+    g.gain.exponentialRampToValueAtTime(v * 0.5, t0 + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13)
+    o.connect(g)
+    g.connect(this.master)
+    o.start(t0)
+    o.stop(t0 + 0.14)
   }
 }
 
